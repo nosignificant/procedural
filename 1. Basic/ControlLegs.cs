@@ -11,15 +11,13 @@ public class ControlLegs : MonoBehaviour
     //0이 왼쪽, 1이 오른쪽
     public Foot[] foots;
 
-    float moveDuration = 1f;
-    float dist = 0f;
-
-
-    bool isMoving = false;
+    float moveDuration = 2f;
 
     private Coroutine moveCoroutine;
-
     public Transform target;
+
+    bool isMoving = false;
+    private bool isCentered = false;
     void Start()
     {
         if (foots != null)
@@ -30,13 +28,13 @@ public class ControlLegs : MonoBehaviour
     }
     void Update()
     {
-        dist = fromThis2Target();
-        if (dist > 3f)
+        if (fromThis2Target(this.transform.position, target.position) > 3f)
         {
             Move();
         }
         else Stop();
 
+        //발 따라움직이는지 확인용 코드 
         if (Input.GetKeyDown(KeyCode.E))
             foots[0].transform.position =
             new Vector3(foots[0].transform.position.x,
@@ -58,22 +56,24 @@ public class ControlLegs : MonoBehaviour
 
     IEnumerator moveForward()
     {
-        Debug.Log("move forward called");
         isMoving = true;
 
         while (isMoving)
         {
+            isCentered = false;
             yield return StartCoroutine(MoveFoot(0));
             yield return new WaitForSeconds(0.05f);
             yield return StartCoroutine(MoveFoot(1));
             yield return StartCoroutine(MoveBody());
+            yield return new WaitForSeconds(0.5f);
+
         }
         isMoving = false;
     }
 
     IEnumerator MoveFoot(int index)
     {
-        Vector3 dir = this.transform.position - target.transform.position;
+        Vector3 dir = foots[index].transform.position - target.transform.position;
         Vector3 startPos = foots[index].stablePosition;
         Vector3 expectPos = foots[index].RestPosition(dir.normalized);
         float t = 0f;
@@ -99,8 +99,8 @@ public class ControlLegs : MonoBehaviour
         float z = foots[0].transform.position.z + foots[1].transform.position.z;
         Vector3 startPos = this.transform.position;
         Vector3 avgPos = new Vector3(x / 2, this.transform.position.y, z / 2);
-        float t = 0f;
 
+        float t = 0f;
         while (t < 1f)
         {
             t += Time.fixedDeltaTime / moveDuration;
@@ -111,10 +111,12 @@ public class ControlLegs : MonoBehaviour
         this.transform.position = avgPos;
         yield return null;
 
+
+
     }
 
-    float fromThis2Target()
+    float fromThis2Target(Vector3 posA, Vector3 posB)
     {
-        return Vector3.Distance(this.transform.position, target.position);
+        return Vector3.Distance(posA, posB);
     }
 }

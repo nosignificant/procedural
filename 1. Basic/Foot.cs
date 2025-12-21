@@ -14,11 +14,13 @@ public class Foot : MonoBehaviour
     void Start()
     {
         stablePosition = this.transform.position;
-        theta = Vector2.SignedAngle(new Vector2(this.transform.position.x, this.transform.position.z),
-                new Vector2(root.forward.x, root.forward.z));
+        theta = Vector2.SignedAngle(
+            new Vector2(this.transform.position.x, this.transform.position.z),
+            new Vector2(root.forward.x, root.forward.z));
     }
     public Vector3 RestPosition(Vector3 moveDir)
     {
+        // 월드 기준 목표물이 있는 방향
         float phi = Vector2.SignedAngle(new Vector2(moveDir.x, moveDir.z), Vector2.up);
         float psi = (theta + phi) * Mathf.Deg2Rad;
         Vector3 raycastOrigin = root.transform.position // 기본 몸통 
