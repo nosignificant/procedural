@@ -40,7 +40,7 @@ public class Foot : MonoBehaviour
         Debug.Log(mag);
         Vector3 raycastOrigin = root.transform.position // 기본 몸통 
          + new Vector3(Mathf.Sin(psi), 100, Mathf.Cos(psi))
-         * (mag / 2);// 월드 기준 내 발이 향할 방향
+         * mag;// 월드 기준 내 발이 향할 방향
 
 
         Debug.DrawRay(raycastOrigin, Vector3.down * 500, Color.red, 1.0f);

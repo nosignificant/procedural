@@ -8,6 +8,8 @@ public class ControlLegs : MonoBehaviour
     //3. 몸통을 발이 이동한 만큼 앞으로 가져간다. 
     //4. 발이 다시 땅에 닿으면 stable position을 업데이트한다 
 
+    //가만히 있을 때 왜 옆으로 가지? 
+
     //0이 왼쪽, 1이 오른쪽
     public Foot[] foots;
 
@@ -65,7 +67,6 @@ public class ControlLegs : MonoBehaviour
             yield return new WaitForSeconds(0.05f);
             yield return StartCoroutine(MoveFoot(1));
             yield return StartCoroutine(MoveBody());
-            yield return new WaitForSeconds(0.5f);
 
         }
         isMoving = false;
@@ -106,13 +107,33 @@ public class ControlLegs : MonoBehaviour
             t += Time.fixedDeltaTime / moveDuration;
             Vector3 currentPos = Vector3.Lerp(startPos, avgPos, t);
             this.transform.position = currentPos;
-            yield return null;
         }
         this.transform.position = avgPos;
+
+        RotBody();
         yield return null;
 
+    }
 
+    private void RotBody()
+    {
+        Vector3[] tempPos = new Vector3[foots.Length];
 
+        Vector2 xzRotVector = Vector3.zero;
+        for (int i = 0; i < foots.Length; i++)
+        {
+            tempPos[i] = foots[i].transform.position;
+            xzRotVector = new Vector2(foots[i].transform.position.x, foots[i].transform.position.z);
+        }
+
+        xzRotVector = xzRotVector / foots.Length;
+        float xzRot = Vector2.SignedAngle(xzRotVector, Vector2.up);
+        transform.rotation = Quaternion.Euler(transform.eulerAngles.x, xzRot, transform.eulerAngles.z);
+
+        for (int i = 0; i < foots.Length; i++)
+        {
+            foots[i].transform.position = tempPos[i];
+        }
     }
 
     float fromThis2Target(Vector3 posA, Vector3 posB)
