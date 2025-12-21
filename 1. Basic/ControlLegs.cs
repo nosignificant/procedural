@@ -12,14 +12,15 @@ public class ControlLegs : MonoBehaviour
 
     //0이 왼쪽, 1이 오른쪽
     public Foot[] foots;
+    public float stride = 5f;
+    public Vector3 defaultRot;
 
-    float moveDuration = 2f;
+    float moveDuration = 3f;
 
     private Coroutine moveCoroutine;
     public Transform target;
 
     bool isMoving = false;
-    private bool isCentered = false;
     void Start()
     {
         if (foots != null)
@@ -30,6 +31,7 @@ public class ControlLegs : MonoBehaviour
     }
     void Update()
     {
+
         if (fromThis2Target(this.transform.position, target.position) > 3f)
         {
             Move();
@@ -62,8 +64,11 @@ public class ControlLegs : MonoBehaviour
 
         while (isMoving)
         {
-            isCentered = false;
+            StartCoroutine(RotBody());
+
             yield return StartCoroutine(MoveFoot(0));
+            //yield return new WaitWhile(() => isCentered);
+
             yield return new WaitForSeconds(0.05f);
             yield return StartCoroutine(MoveFoot(1));
             yield return StartCoroutine(MoveBody());
@@ -74,11 +79,11 @@ public class ControlLegs : MonoBehaviour
 
     IEnumerator MoveFoot(int index)
     {
-        Vector3 dir = foots[index].transform.position - target.transform.position;
+        Vector3 dir = target.transform.position - foots[index].transform.position;
         Vector3 startPos = foots[index].stablePosition;
-        Vector3 expectPos = foots[index].RestPosition(dir.normalized);
+        Vector3 expectPos = foots[index].RestPosition(dir.normalized, stride);
         float t = 0f;
-        float stepHeight = 0.5f;
+        float stepHeight = 1f;
 
         while (t < 1f)
         {
@@ -96,44 +101,44 @@ public class ControlLegs : MonoBehaviour
     }
     IEnumerator MoveBody()
     {
+
+        //Vector3 dir = (transform.position - target.transform.position).normalized;
         float x = foots[0].transform.position.x + foots[1].transform.position.x;
         float z = foots[0].transform.position.z + foots[1].transform.position.z;
         Vector3 startPos = this.transform.position;
         Vector3 avgPos = new Vector3(x / 2, this.transform.position.y, z / 2);
+        //+ dir * stride;
 
         float t = 0f;
+
         while (t < 1f)
         {
             t += Time.fixedDeltaTime / moveDuration;
             Vector3 currentPos = Vector3.Lerp(startPos, avgPos, t);
             this.transform.position = currentPos;
+            yield return null;
+
         }
         this.transform.position = avgPos;
 
-        RotBody();
-        yield return null;
 
     }
 
-    private void RotBody()
+    IEnumerator RotBody()
     {
-        Vector3[] tempPos = new Vector3[foots.Length];
+        Vector3 between = foots[1].transform.position - foots[0].transform.position;
+        between.y = 0;
+        between.Normalize();
+        Vector3 forwardDir = new Vector3(-between.z, 0, between.x);
 
-        Vector2 xzRotVector = Vector3.zero;
-        for (int i = 0; i < foots.Length; i++)
+        if (forwardDir != Vector3.zero)
         {
-            tempPos[i] = foots[i].transform.position;
-            xzRotVector = new Vector2(foots[i].transform.position.x, foots[i].transform.position.z);
+            Quaternion targetRot = Quaternion.LookRotation(forwardDir);
+            transform.rotation = Quaternion.Slerp(
+                        transform.rotation, targetRot, Time.deltaTime * 5f);
         }
+        yield return null;
 
-        xzRotVector = xzRotVector / foots.Length;
-        float xzRot = Vector2.SignedAngle(xzRotVector, Vector2.up);
-        transform.rotation = Quaternion.Euler(transform.eulerAngles.x, xzRot, transform.eulerAngles.z);
-
-        for (int i = 0; i < foots.Length; i++)
-        {
-            foots[i].transform.position = tempPos[i];
-        }
     }
 
     float fromThis2Target(Vector3 posA, Vector3 posB)

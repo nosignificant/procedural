@@ -7,10 +7,8 @@ public class Foot : MonoBehaviour
     public Vector3 stablePosition;
     public Vector3 defaultPos;
 
-    public float stride = 10f;
 
     //0이 왼쪽, 1이 오른쪽
-
     public int LR;
     public LayerMask groundLayer;
 
@@ -23,25 +21,27 @@ public class Foot : MonoBehaviour
         //몸통 대비 발의 상대 위치 
         defaultPos = this.transform.position - root.position;
 
+        //몸통 - 발의 초기 각도 
         theta = Vector2.SignedAngle(
         new Vector2(defaultPos.x, defaultPos.z),
         new Vector2(root.forward.x, root.forward.z)
     );
     }
-    public Vector3 RestPosition(Vector3 moveDir)
+    public Vector3 RestPosition(Vector3 moveDir, float stride)
     {
+        //?
+        if (moveDir.magnitude < 0.01f) moveDir = root.forward;
+
         // 월드 기준 목표물이 있는 방향
         float phi = Vector2.SignedAngle(new Vector2(moveDir.x, moveDir.z), Vector2.up);
+
         //월드 기준 지금 발이 향할 방향 
         float psi = (theta + phi) * Mathf.Deg2Rad;
 
-        float mag = new Vector2(defaultPos.x, defaultPos.z).magnitude;
-
-        Debug.Log(mag);
-        Vector3 raycastOrigin = root.transform.position // 기본 몸통 
-         + new Vector3(Mathf.Sin(psi), 100, Mathf.Cos(psi))
-         * mag;// 월드 기준 내 발이 향할 방향
-
+        Vector3 raycastOrigin = root.position // 기본 몸통 
+         + new Vector3(Mathf.Sin(psi), 100, Mathf.Cos(psi)) // 월드 기준 내 발이 향할 방향
+         * 1.2f // 몸통 중심에서 발까지 거리 
+         + moveDir.normalized * stride; // 발을 앞으로 좀 뻗어
 
         Debug.DrawRay(raycastOrigin, Vector3.down * 500, Color.red, 1.0f);
 
@@ -55,4 +55,5 @@ public class Foot : MonoBehaviour
         }
     }
 
+    // Vector3 raycastOrigin = targetPos + Vector3.up * 10f;
 }
