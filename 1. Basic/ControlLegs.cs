@@ -12,14 +12,14 @@ public class ControlLegs : MonoBehaviour
     public Foot[] foots;
 
     float moveDuration = 1f;
-    float delay = 0.1f;
+    float dist = 0f;
+
 
     bool isMoving = false;
 
     private Coroutine moveCoroutine;
 
-    public PlayerControl playerControl;
-
+    public Transform target;
     void Start()
     {
         if (foots != null)
@@ -30,7 +30,8 @@ public class ControlLegs : MonoBehaviour
     }
     void Update()
     {
-        if (playerControl.getKeyDown)
+        dist = fromThis2Target();
+        if (dist > 3f)
         {
             Move();
         }
@@ -65,6 +66,7 @@ public class ControlLegs : MonoBehaviour
             yield return StartCoroutine(MoveFoot(0));
             yield return new WaitForSeconds(0.05f);
             yield return StartCoroutine(MoveFoot(1));
+            yield return StartCoroutine(MoveBody());
         }
         isMoving = false;
     }
@@ -72,13 +74,12 @@ public class ControlLegs : MonoBehaviour
     IEnumerator MoveFoot(int index)
     {
         Vector3 startPos = foots[index].stablePosition;
-        Vector3 expectPos = foots[index].RestPosition(playerControl.GetMove());
+        Vector3 expectPos = foots[index].RestPosition();
         float t = 0f;
         float stepHeight = 0.5f;
 
         while (t < 1f)
         {
-            Debug.Log(t);
             t += Time.fixedDeltaTime / moveDuration;
             //lerp가 뭐지 
             Vector3 currentPos = Vector3.Lerp(startPos, expectPos, t);
@@ -90,5 +91,29 @@ public class ControlLegs : MonoBehaviour
 
         foots[index].stablePosition = expectPos;
         //Debug.Log("criteria fulfilled. moving start");
+    }
+    IEnumerator MoveBody()
+    {
+        float x = foots[0].transform.position.x + foots[1].transform.position.x;
+        float z = foots[0].transform.position.z + foots[1].transform.position.z;
+        Vector3 startPos = this.transform.position;
+        Vector3 avgPos = new Vector3(x / 2, this.transform.position.y, z / 2);
+        float t = 0f;
+
+        while (t < 1f)
+        {
+            t += Time.fixedDeltaTime / moveDuration;
+            Vector3 currentPos = Vector3.Lerp(startPos, avgPos, t);
+            this.transform.position = currentPos;
+            yield return null;
+        }
+        this.transform.position = avgPos;
+        yield return null;
+
+    }
+
+    float fromThis2Target()
+    {
+        return Vector3.Distance(this.transform.position, target.position);
     }
 }
