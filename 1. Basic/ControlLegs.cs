@@ -39,9 +39,9 @@ public class ControlLegs : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.E))
             foots[0].transform.position =
-            new Vector3(foots[0].transform.position.x + 0.5f,
+            new Vector3(foots[0].transform.position.x,
             foots[0].transform.position.y,
-            foots[0].transform.position.z);
+            foots[0].transform.position.z + 0.5f);
     }
 
     void Move()
@@ -73,8 +73,9 @@ public class ControlLegs : MonoBehaviour
 
     IEnumerator MoveFoot(int index)
     {
+        Vector3 dir = this.transform.position - target.transform.position;
         Vector3 startPos = foots[index].stablePosition;
-        Vector3 expectPos = foots[index].RestPosition();
+        Vector3 expectPos = foots[index].RestPosition(dir.normalized);
         float t = 0f;
         float stepHeight = 0.5f;
 
