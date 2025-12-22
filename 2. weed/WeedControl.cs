@@ -17,7 +17,7 @@ public class WeedControl : MonoBehaviour
     public Weedpart root;
 
 
-    public float partsOffset = 3f;
+    public float partsOffset = 1f;
 
     private float dist;
     private Transform weedHeadDefaultPos;
@@ -34,7 +34,7 @@ public class WeedControl : MonoBehaviour
     void Update()
     {
         dist = Util.fromThis2Target(transform.position, target.transform.position);
-        if (dist < 5f) Follow();
+        if (dist > 5f) Follow();
         else Wander();
 
     }
@@ -77,18 +77,25 @@ public class WeedControl : MonoBehaviour
         for (int i = 1; i < parts.Length; i++)
         {
             Weedpart previousPart = parts[i - 1];
-
-            Vector3 pos1 = previousPart.transform.position -
+            targetPos = previousPart.transform.position -
                     (previousPart.transform.forward * partsOffset);
-
-            float t = (float)i / parts.Length;
-            t = t * t;
-
-            targetPos = Vector3.Lerp(pos1, root.transform.position, t);
-
             parts[i].FollowTarget(targetPos);
         }
         root.transform.position = rootDefaultPos.position;
+
+        for (int i = parts.Length - 2; i > 0; i--)
+        {
+            Weedpart previousPart = parts[i + 1];
+            Vector3 dir = (previousPart.transform.position - parts[i].transform.position).normalized;
+
+            float dist = (float)i / parts.Length - 1;
+            dist = dist * dist * partsOffset;
+
+            targetPos = dir * dist;
+            parts[i].FollowTarget(targetPos);
+        }
+        root.transform.position = rootDefaultPos.position;
+
     }
 
 }
