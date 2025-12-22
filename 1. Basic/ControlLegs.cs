@@ -8,8 +8,6 @@ public class ControlLegs : MonoBehaviour
     //3. 몸통을 발이 이동한 만큼 앞으로 가져간다. 
     //4. 발이 다시 땅에 닿으면 stable position을 업데이트한다 
 
-    //가만히 있을 때 왜 옆으로 가지? 
-
     //0이 왼쪽, 1이 오른쪽
     public Foot[] foots;
     public float stride = 5f;
@@ -32,7 +30,7 @@ public class ControlLegs : MonoBehaviour
     void Update()
     {
 
-        if (fromThis2Target(this.transform.position, target.position) > 3f)
+        if (Util.fromThis2Target(this.transform.position, target.position) > 3f)
         {
             Move();
         }
@@ -79,6 +77,7 @@ public class ControlLegs : MonoBehaviour
 
     IEnumerator MoveFoot(int index)
     {
+        // 타겟 - 나 해야 양수 방향 나옴 
         Vector3 dir = target.transform.position - foots[index].transform.position;
         Vector3 startPos = foots[index].stablePosition;
         Vector3 expectPos = foots[index].RestPosition(dir.normalized, stride);
@@ -120,8 +119,6 @@ public class ControlLegs : MonoBehaviour
 
         }
         this.transform.position = avgPos;
-
-
     }
 
     IEnumerator RotBody()
@@ -141,8 +138,5 @@ public class ControlLegs : MonoBehaviour
 
     }
 
-    float fromThis2Target(Vector3 posA, Vector3 posB)
-    {
-        return Vector3.Distance(posA, posB);
-    }
+
 }
