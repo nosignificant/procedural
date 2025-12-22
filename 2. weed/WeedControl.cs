@@ -14,18 +14,20 @@ public class WeedControl : MonoBehaviour
     public Weedpart[] parts;
     public Weedpart weedHead;
     public Transform target;
-    public Transform root;
+    public Weedpart root;
 
 
     public float partsOffset = 3f;
 
     private float dist;
     private Transform weedHeadDefaultPos;
+    private Transform rootDefaultPos;
 
     private Coroutine moveCoroutine;
 
     void Start()
     {
+        rootDefaultPos = root.transform;
         weedHeadDefaultPos = weedHead.transform;
     }
 
@@ -55,11 +57,11 @@ public class WeedControl : MonoBehaviour
     {
         float rootDist = Vector2.Distance(
                 new Vector2(weedHead.transform.position.x, weedHead.transform.position.z),
-                new Vector2(root.position.x, root.position.z));
+                new Vector2(root.transform.position.x, root.transform.position.z));
 
         float defaultDist = Vector2.Distance(
                 new Vector2(weedHeadDefaultPos.position.x, weedHeadDefaultPos.position.z),
-                new Vector2(root.position.x, root.position.z));
+                new Vector2(root.transform.position.x, root.transform.position.z));
 
 
         if (rootDist > defaultDist * 3f)
@@ -75,9 +77,18 @@ public class WeedControl : MonoBehaviour
         for (int i = 1; i < parts.Length; i++)
         {
             Weedpart previousPart = parts[i - 1];
-            targetPos = previousPart.transform.position - (previousPart.transform.forward * partsOffset);
+
+            Vector3 pos1 = previousPart.transform.position -
+                    (previousPart.transform.forward * partsOffset);
+
+            float t = (float)i / parts.Length;
+            t = t * t;
+
+            targetPos = Vector3.Lerp(pos1, root.transform.position, t);
+
             parts[i].FollowTarget(targetPos);
         }
+        root.transform.position = rootDefaultPos.position;
     }
 
 }
