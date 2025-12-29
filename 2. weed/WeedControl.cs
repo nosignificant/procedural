@@ -71,9 +71,11 @@ public class WeedControl : MonoBehaviour
     }
     void MoveBodyParts()
     {
-        Vector3 targetPos = weedHead.transform.position - (weedHead.transform.forward * partsOffset);
+        Vector3 targetPos = weedHead.transform.position
+                - (weedHead.transform.forward * partsOffset);
         parts[0].FollowTarget(targetPos);
 
+        //follow head
         for (int i = 1; i < parts.Length; i++)
         {
             Weedpart previousPart = parts[i - 1];
@@ -83,16 +85,33 @@ public class WeedControl : MonoBehaviour
         }
         root.transform.position = rootDefaultPos.position;
 
-        for (int i = parts.Length - 2; i > 0; i--)
+        //뿌리부터
+        for (int i = parts.Length - 2; i >= 0; i--)
         {
-            Weedpart previousPart = parts[i + 1];
-            Vector3 dir = (previousPart.transform.position - parts[i].transform.position).normalized;
+            Weedpart currentPart = parts[i];      // 나 (위)
+            Weedpart lowerPart = parts[i + 1];    // 내 밑 (아래 - 이미 고정됨)
 
-            float dist = (float)i / parts.Length - 1;
-            dist = dist * dist * partsOffset;
+            // [방향 계산]
+            // 1단계에서 머리 따라갔던 내 위치(currentPart.position)를 기준으로
+            // "밑에서 나를 바라보는 방향"을 계산합니다. (곡선 모양 유지)
+            Vector3 dir = (currentPart.transform.position - lowerPart.transform.position).normalized;
 
-            targetPos = dir * dist;
-            parts[i].FollowTarget(targetPos);
+            // [꼿꼿함(Stiffness) 추가]
+            Vector3 stiffDir = Vector3.up; // 하늘 방향
+
+            // 뿌리에 가까울수록(i가 클수록) 하늘 방향을 더 섞음
+            float stiffness = (float)i / (parts.Length - 1);
+            stiffness = stiffness * stiffness; // 제곱해주면 위쪽이 더 부드러움
+
+            // 방향 섞기 (원래 가려던 방향 vs 하늘 방향)
+            Vector3 finalDir = Vector3.Lerp(dir, stiffDir, stiffness).normalized;
+
+            // [위치 강제 적용]
+            // 밑에 놈 위치에서 방향대로 간격만큼 띄운 곳에 나를 '즉시' 배치
+            currentPart.transform.position = lowerPart.transform.position + (finalDir * partsOffset);
+
+            // 회전도 맞춰주면 좋음 (나중을 위해)
+            currentPart.transform.LookAt(weedHead.transform);
         }
         root.transform.position = rootDefaultPos.position;
 
