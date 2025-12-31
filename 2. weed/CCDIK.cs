@@ -1,15 +1,17 @@
 using UnityEngine;
 
-public class WeedControl : MonoBehaviour
+public class CCDIK : MonoBehaviour
 {
-    public transform target;
-    public transform tip;
+    public Transform target;
+    public Transform tip;
+
+    public CCDIKjoint[] joints;
 
     void Update()
     {
         foreach (CCDIKjoint joint in joints)
         {
-            joint.evalute(tip, target, 여기에 뭐들어가지 ?);
+            joint.evalute(tip, target);
         }
     }
 
