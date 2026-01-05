@@ -29,8 +29,7 @@ public class ControlLegs : MonoBehaviour
     }
     void Update()
     {
-
-        if (Util.fromThis2Target(this.transform.position, target.position) > 3f)
+        if (Vector3.Distance(this.transform.position, target.position) > 3f)
         {
             Move();
         }

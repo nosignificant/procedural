@@ -33,7 +33,7 @@ public class WeedControl : MonoBehaviour
 
     void Update()
     {
-        dist = Util.fromThis2Target(transform.position, target.transform.position);
+        dist = Vector3.Distance(transform.position, target.transform.position);
         if (dist > 5f) Follow();
         else Wander();
 

@@ -19,8 +19,5 @@ public class CCDIKjoint : MonoBehaviour
         transform.rotation = Quaternion.FromToRotation(transform.rotation * axis,
         transform.parent.rotation * axis
         ) * transform.rotation;
-
-        //
-
     }
 }
