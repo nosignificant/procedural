@@ -28,7 +28,7 @@ public class Weed2 : MonoBehaviour
     private GameObject targetPosInstance;
 
     private Vector3 targetPos;
-    private float headToRootDist;
+    private float rootToTargetDist;
     private Vector3 HeadRootDir;
 
 
@@ -51,27 +51,18 @@ public class Weed2 : MonoBehaviour
 
         //타겟을 구했으니 타겟으로 옮길지 말지를 정해야함 
         //머리 - 뿌리 거리, 방향
-        Vector3 diff = targetPos - head.transform.position;
-        headToRootDist = Vector3.Distance(head.transform.position, root.transform.position);
+        Vector3 diff = targetPos - root.transform.position;
+        rootToTargetDist = Vector3.Distance(root.transform.position, targetPos);
         HeadRootDir = root.transform.position - head.transform.position;
 
         //x축이나 z축이 일정 거리 이상 멀어지면 새 타겟을 구한다.
-        if (Mathf.Abs(diff.x) > 3 || Mathf.Abs(diff.z) > 3)
+        if (Mathf.Abs(diff.x) > 5 || Mathf.Abs(diff.z) > 5)
         {
+            Debug.Log("get new target");
             targetPos = head.SetTargetGround();
         }
-
-        // 머리부터 뿌리까지 길이가 기본 길이보다 짧으면 머리를 땅에 닿게 한다.
         ForwardTarget();
-
-        // 머리부터 뿌리까지 길이가 기본 길이보다 길어지면 머리가 땅에 닿는 것을 해제한다 
-        if (headToRootDist > defaultWeedLength)
-        {
-            BackwardTarget();
-        }
-
         targetPosInstance.transform.position = targetPos;
-
     }
 
     // 머리(땅에 닿을 부분) 의 위치 - 타겟 구함
@@ -79,8 +70,7 @@ public class Weed2 : MonoBehaviour
     // 뿌리부분은 고정되어서 움직이지 않음 
     void ForwardTarget()
     {
-        head.transform.position = targetPos;
-        offset = headToRootDist / (parts.Length - 1);
+        head.transform.position = Vector3.Lerp(head.transform.position, targetPos, Time.deltaTime); offset = rootToTargetDist / (parts.Length - 1);
 
         for (int i = parts.Length - 2; i > 0; i--)
         {
@@ -91,7 +81,9 @@ public class Weed2 : MonoBehaviour
 
             Vector3 finalDir = Vector3.Lerp(dir, HeadRootDir, 0.5f).normalized;
 
-            current.transform.position = lower.transform.position + finalDir * offset;
+            Vector3 finalPos = lower.transform.position + finalDir * offset;
+            current.transform.position = Vector3.Lerp(current.transform.position, finalPos, Time.deltaTime);
+            current.transform.LookAt(lower.transform);
         }
     }
     void BackwardTarget()
@@ -103,14 +95,18 @@ public class Weed2 : MonoBehaviour
             root.transform.position = parent.TransformPoint(defaultRootPos);
         }
 
-        for (int i = 1; i < parts.Length - 1; i++)
+        for (int i = 1; i < parts.Length; i++)
         {
             Weedpart2 current = parts[i];
             Weedpart2 upper = parts[i - 1]; // 뿌리
 
             Vector3 dir = (current.transform.position - upper.transform.position).normalized;
+            Vector3 finalDir = Vector3.Lerp(dir, HeadRootDir, 0.5f).normalized;
 
-            current.transform.position = upper.transform.position + dir * offset;
+
+            Vector3 finalPos = upper.transform.position + finalDir * offset;
+            current.transform.position = finalPos;
+            current.transform.LookAt(upper.transform);
         }
     }
 }
