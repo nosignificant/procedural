@@ -2,144 +2,135 @@ using UnityEngine;
 
 public class Kabsch : MonoBehaviour
 {
-    public int iteration = 5;
+    [Header("Settings")]
+    public int iteration = 9;
 
-    //현재 transfrom
+    [Header("Rotation Limit (New)")]
+    public bool enableLimit = true;       // 회전 제한 켜기/끄기
+    [Range(0, 180)]
+    public float maxRotationAngle = 180f;  // ★ 최대 45도까지만 회전 허용 (이거 넘어가면 45도에 고정)
+
+    [Header("Targets")]
+    public Transform target;
+
+    [Header("Objects")]
     public Transform[] refChild;
     public Transform[] inChild;
 
-    Vector3[] inPoint; Vector3[] refPoint;
-
-    public Transform target;
-    public Transform parent;
-
+    [Header("Debug Visualizer")]
     public GameObject centerPrefab;
-    GameObject centerInstance;
+    public Transform parent;
+    private GameObject centerInstance;
 
-    float moveSpeed = 5.0f;
-
-    public Vector3 avgRefPos = new Vector3();
-    public Vector3 avgInPos = new Vector3();
-
+    // 내부 변수들
+    private Vector3[] originalInLocalPos;
+    [HideInInspector] public Vector3 avgRefPos;
+    private Vector3 avgInPos;
+    private Vector3[] currentRefPoints;
 
     void Start()
     {
-        inPoint = new Vector3[inChild.Length];
-        refPoint = new Vector3[refChild.Length];
+        originalInLocalPos = new Vector3[inChild.Length];
+        currentRefPoints = new Vector3[refChild.Length];
+
+        Vector3 sumIn = Vector3.zero;
+        for (int i = 0; i < inChild.Length; i++) sumIn += inChild[i].position;
+        avgInPos = sumIn / inChild.Length;
 
         for (int i = 0; i < inChild.Length; i++)
         {
-            inPoint[i] = inChild[i].position;
+            originalInLocalPos[i] = inChild[i].position - avgInPos;
         }
-        centerInstance = Instantiate(centerPrefab, parent);
 
+        if (centerPrefab != null)
+        {
+            centerInstance = Instantiate(centerPrefab, parent != null ? parent : transform);
+        }
     }
 
     void Update()
     {
-        Quaternion optimalRot = Kab();
+        CalculateRefCenter();
 
-        if (centerInstance != null)
-            centerInstance.transform.position = avgRefPos;
+        if (centerInstance != null) centerInstance.transform.position = avgRefPos;
 
-        //transform.position =
-        //Vector3.MoveTowards(transform.position, target.position, moveSpeed * Time.deltaTime);
+        // 1. 최적 회전 계산
+        Quaternion optimalRot = SolveKabsch();
 
-        for (int i = 0; i < inChild.Length; i++)
+        // ★ 2. 회전 각도 제한 로직 (New) ★
+        if (enableLimit)
         {
-            // 공식: 목표중심 + (회전 * (내위치 - 내중심))
-            Vector3 relativePos = inChild[i].position - avgInPos; // 내 중심 빼기
-            Vector3 rotatedPos = optimalRot * relativePos;        // 회전 시키기
-            Vector3 finalPos = avgRefPos + rotatedPos;            // 목표 중심으로 이동
+            // 기본 상태(Identity)와 계산된 회전(optimalRot) 사이의 각도 차이 계산
+            float angle = Quaternion.Angle(Quaternion.identity, optimalRot);
 
-            // 부드럽게 이동
-            inChild[i].position = Vector3.Lerp(inChild[i].position, finalPos, moveSpeed * Time.deltaTime);
+            // 만약 각도가 제한치(maxRotationAngle)보다 크다면?
+            if (angle > maxRotationAngle)
+            {
+                // 강제로 제한 각도까지만 회전시킨 값으로 덮어씌움
+                optimalRot = Quaternion.RotateTowards(Quaternion.identity, optimalRot, maxRotationAngle);
+            }
         }
 
+        // 3. 제한된 회전 적용
+        ApplyToInChildren(optimalRot);
     }
 
-    Quaternion Kab()
+    void CalculateRefCenter()
     {
-        if (refChild.Length != inChild.Length) return Quaternion.identity;
-        Quaternion OptimalRotation = Quaternion.identity;
-
-        avgRefPos = Vector3.zero;
-        avgInPos = Vector3.zero;
-
-        // 1. 이동 평균 //
+        Vector3 sumRef = Vector3.zero;
         for (int i = 0; i < refChild.Length; i++)
         {
-            avgRefPos += refChild[i].position;
-            avgInPos += inChild[i].position;
-
-            refPoint[i] = refChild[i].position;
-            inPoint[i] = inChild[i].position;
+            currentRefPoints[i] = refChild[i].position;
+            sumRef += currentRefPoints[i];
         }
-
-        avgRefPos = avgRefPos / refChild.Length;
-        avgInPos = avgInPos / refChild.Length;
-
-        // 2. 회전 평균 //
-        //1) 평균 위치로 옮기기
-        Vector3[] cov = TransposeAndCov(inPoint, refPoint, avgInPos, avgRefPos);
-
-        extractRotation(cov, ref OptimalRotation);
-
-        return OptimalRotation;
+        avgRefPos = sumRef / refChild.Length;
     }
 
-    //2) 공분산 구하기
-    Vector3[] TransposeAndCov(Vector3[] inV, Vector3[] refV, Vector3 inAvg, Vector3 refAvg)
+    void ApplyToInChildren(Quaternion rot)
+    {
+        for (int i = 0; i < inChild.Length; i++)
+        {
+            Vector3 targetPos = avgRefPos + (rot * originalInLocalPos[i]);
+            inChild[i].position = Vector3.Lerp(inChild[i].position, targetPos, 0.05f);
+        }
+    }
+
+    Quaternion SolveKabsch()
+    {
+        if (refChild.Length != inChild.Length) return Quaternion.identity;
+        Vector3[] cov = TransposeAndCov(originalInLocalPos, currentRefPoints, Vector3.zero, avgRefPos);
+        Quaternion q = Quaternion.identity;
+        extractRotation(cov, ref q);
+        return q;
+    }
+
+    Vector3[] TransposeAndCov(Vector3[] inRel, Vector3[] refAbs, Vector3 inCenterRel, Vector3 refCenterAbs)
     {
         Vector3[] cov = new Vector3[3];
-
-        for (int k = 0; k < inV.Length; k++)
+        for (int k = 0; k < inRel.Length; k++)
         {
-            Vector3 ptIn = inV[k] - inAvg;
-            Vector3 ptRef = refV[k] - refAvg;
-
-            // 3x3 행렬 누적
-            cov[0][0] += ptIn.x * ptRef.x;
-            cov[0][1] += ptIn.x * ptRef.y;
-            cov[0][2] += ptIn.x * ptRef.z;
-
-            cov[1][0] += ptIn.y * ptRef.x;
-            cov[1][1] += ptIn.y * ptRef.y;
-            cov[1][2] += ptIn.y * ptRef.z;
-
-            cov[2][0] += ptIn.z * ptRef.x;
-            cov[2][1] += ptIn.z * ptRef.y;
-            cov[2][2] += ptIn.z * ptRef.z;
+            Vector3 ptIn = inRel[k];
+            Vector3 ptRef = refAbs[k] - refCenterAbs;
+            cov[0][0] += ptIn.x * ptRef.x; cov[0][1] += ptIn.x * ptRef.y; cov[0][2] += ptIn.x * ptRef.z;
+            cov[1][0] += ptIn.y * ptRef.x; cov[1][1] += ptIn.y * ptRef.y; cov[1][2] += ptIn.y * ptRef.z;
+            cov[2][0] += ptIn.z * ptRef.x; cov[2][1] += ptIn.z * ptRef.y; cov[2][2] += ptIn.z * ptRef.z;
         }
         return cov;
     }
 
-    //3) 회전 구하기
     void extractRotation(Vector3[] cov, ref Quaternion q)
     {
         Vector3 omega = new Vector3();
-
         for (int i = 0; i < iteration; i++)
         {
-            Vector3 xDir = q * Vector3.right; // (1, 0, 0)
-            Vector3 yDir = q * Vector3.up; // (0, 1, 0)
-            Vector3 zDir = q * Vector3.forward; //(0, 0, 1)
-
-            //회전해야할 양
-            Vector3 crossSum = Vector3.Cross(xDir, cov[0])
-                + Vector3.Cross(yDir, cov[1])
-                + Vector3.Cross(zDir, cov[2]);
-            float dotSum = Mathf.Abs(Vector3.Dot(xDir, cov[0])
-                + Vector3.Dot(yDir, cov[1])
-                + Vector3.Dot(zDir, cov[2]));
-
+            Vector3 xDir = q * Vector3.right; Vector3 yDir = q * Vector3.up; Vector3 zDir = q * Vector3.forward;
+            Vector3 crossSum = Vector3.Cross(xDir, cov[0]) + Vector3.Cross(yDir, cov[1]) + Vector3.Cross(zDir, cov[2]);
+            float dotSum = Mathf.Abs(Vector3.Dot(xDir, cov[0]) + Vector3.Dot(yDir, cov[1]) + Vector3.Dot(zDir, cov[2])) + 1e-6f;
             omega = crossSum / dotSum;
-
             float w = omega.magnitude;
-            if (w < 0.000001) break;
-
+            if (w < 1e-6f) break;
             q = Quaternion.AngleAxis(w * Mathf.Rad2Deg, omega.normalized) * q;
-            q = Quaternion.Lerp(q, q, 0f);
+            q = q.normalized;
         }
     }
 }
