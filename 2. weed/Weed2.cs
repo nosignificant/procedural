@@ -31,6 +31,7 @@ public class Weed2 : MonoBehaviour
     private float rootToTargetDist;
     private Vector3 HeadRootDir;
 
+    private bool isMoving = false;
 
     void Start()
     {
@@ -48,7 +49,7 @@ public class Weed2 : MonoBehaviour
         {
             root.transform.position = parent.TransformPoint(defaultRootPos);
         }
-
+        ForwardTarget();
         //타겟을 구했으니 타겟으로 옮길지 말지를 정해야함 
         //머리 - 뿌리 거리, 방향
         Vector3 diff = targetPos - root.transform.position;
@@ -58,11 +59,9 @@ public class Weed2 : MonoBehaviour
         //x축이나 z축이 일정 거리 이상 멀어지면 새 타겟을 구한다.
         if (Mathf.Abs(diff.x) > 5 || Mathf.Abs(diff.z) > 5)
         {
-            Debug.Log("get new target");
-            targetPos = head.SetTargetGround();
+            if (!isMoving)
+                StartCoroutine(MoveFoot());
         }
-        ForwardTarget();
-        targetPosInstance.transform.position = targetPos;
     }
 
     // 머리(땅에 닿을 부분) 의 위치 - 타겟 구함
@@ -86,27 +85,37 @@ public class Weed2 : MonoBehaviour
             current.transform.LookAt(lower.transform);
         }
     }
-    void BackwardTarget()
+
+    IEnumerator MoveFoot()
     {
-        offset = defaultWeedLength / (parts.Length - 1);
+        isMoving = true;
+        targetPos = head.SetTargetGround();
 
-        if (parent != null)
+        // 타겟 - 나 해야 양수 방향 나옴 
+        Vector3 dir = targetPos - head.transform.position;
+        Vector3 startPos = head.transform.position;
+        float t = 0f;
+        float stepTime = 2f;
+        float stepHeight = 4f;
+
+        while (t < 1f)
         {
-            root.transform.position = parent.TransformPoint(defaultRootPos);
+            t += Time.fixedDeltaTime / stepTime;
+            //lerp가 뭐지 
+            Vector3 currentPos = Vector3.Lerp(startPos, targetPos, t);
+            float heightCurve = Mathf.Sin(t * Mathf.PI) * stepHeight;
+
+            head.transform.position = currentPos + Vector3.up * heightCurve;
+            targetPosInstance.transform.position = currentPos + Vector3.up * heightCurve;
+
+
+            yield return null;
         }
+        head.transform.position = targetPos;
+        targetPosInstance.transform.position = targetPos;
+        isMoving = false;
 
-        for (int i = 1; i < parts.Length; i++)
-        {
-            Weedpart2 current = parts[i];
-            Weedpart2 upper = parts[i - 1]; // 뿌리
+        yield return null;
 
-            Vector3 dir = (current.transform.position - upper.transform.position).normalized;
-            Vector3 finalDir = Vector3.Lerp(dir, HeadRootDir, 0.5f).normalized;
-
-
-            Vector3 finalPos = upper.transform.position + finalDir * offset;
-            current.transform.position = finalPos;
-            current.transform.LookAt(upper.transform);
-        }
     }
 }
