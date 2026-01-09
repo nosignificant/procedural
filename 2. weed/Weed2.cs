@@ -15,22 +15,27 @@ public class Weed2 : MonoBehaviour
     public Weedpart2 head; // 머리가 땅에 붙음 
     public Weedpart2 root; // 뿌리가 몸에 붙음 
 
-
-    public float defaultWeedLength;
+    [Header("position")]
     private Vector3 defaultRootPos;
-    public float stickDist = 5.0f;
-    private float offset;
-
-    public GameObject targetPosPrefab;
-
     public Transform parent;
-
-    private GameObject targetPosInstance;
-
     private Vector3 targetPos;
-    private float rootToTargetDist;
     private Vector3 HeadRootDir;
 
+    [Header("offsets")]
+
+    public float stepDist = 4.0f;
+    private float offset;
+
+    [Header("debug")]
+
+    public GameObject targetPosPrefab;
+    private GameObject targetPosInstance;
+
+    private float rootToTargetDist;
+
+    [Header("moving dir")]
+    private Vector3 prevPos;
+    private Vector3 movingDir;
     private bool isMoving = false;
 
     void Start()
@@ -38,9 +43,11 @@ public class Weed2 : MonoBehaviour
         defaultRootPos = parent.InverseTransformPoint(root.transform.position);
         if (targetPosPrefab != null)
         {
-            targetPosInstance = Instantiate(targetPosPrefab, parent != null ? parent : transform);
+            targetPosInstance = Instantiate(targetPosPrefab);
         }
-        targetPos = head.SetTargetGround();
+        targetPos = head.SetTargetGround(Vector3.zero);
+        head.transform.position = targetPos;
+        prevPos = root.transform.position;
     }
 
     void Update()
@@ -49,7 +56,10 @@ public class Weed2 : MonoBehaviour
         {
             root.transform.position = parent.TransformPoint(defaultRootPos);
         }
-        ForwardTarget();
+        Vector3 movingVelocity = (root.transform.position - head.transform.position).normalized;
+
+        bodyFABRIK();
+
         //타겟을 구했으니 타겟으로 옮길지 말지를 정해야함 
         //머리 - 뿌리 거리, 방향
         Vector3 diff = targetPos - root.transform.position;
@@ -57,17 +67,23 @@ public class Weed2 : MonoBehaviour
         HeadRootDir = root.transform.position - head.transform.position;
 
         //x축이나 z축이 일정 거리 이상 멀어지면 새 타겟을 구한다.
-        if (Mathf.Abs(diff.x) > 5 || Mathf.Abs(diff.z) > 5)
+        //if (Mathf.Abs(diff.x) > 10 || Mathf.Abs(diff.z) > 10)
+        if (rootToTargetDist > 8)
         {
+            Vector3 predictPos = root.transform.position + (movingVelocity * stepDist);
+            if (movingVelocity.magnitude < 0.1f)
+            {
+                predictPos += Random.insideUnitSphere;
+            }
             if (!isMoving)
-                StartCoroutine(MoveFoot());
+                StartCoroutine(MoveFoot(predictPos));
         }
     }
 
     // 머리(땅에 닿을 부분) 의 위치 - 타겟 구함
     // 타겟까지 거리가 일정 이하면 우선 머리부터 땅에 닿고 나머지 파트는 그 방향으로 따라감
     // 뿌리부분은 고정되어서 움직이지 않음 
-    void ForwardTarget()
+    void bodyFABRIK()
     {
         head.transform.position = Vector3.Lerp(head.transform.position, targetPos, Time.deltaTime); offset = rootToTargetDist / (parts.Length - 1);
 
@@ -86,17 +102,26 @@ public class Weed2 : MonoBehaviour
         }
     }
 
-    IEnumerator MoveFoot()
+
+    IEnumerator MoveFoot(Vector3 predictPos)
     {
         isMoving = true;
-        targetPos = head.SetTargetGround();
+
+        Vector3 oldPos = head.transform.position;
+        Vector3 newPos = head.SetTargetGround(predictPos);
+        if (Vector3.Distance(oldPos, newPos) < 1.0f)
+        {
+            isMoving = false;
+            yield break;
+        }
+        targetPos = newPos;
 
         // 타겟 - 나 해야 양수 방향 나옴 
         Vector3 dir = targetPos - head.transform.position;
         Vector3 startPos = head.transform.position;
         float t = 0f;
-        float stepTime = 2f;
-        float stepHeight = 4f;
+        float stepTime = 4f;
+        float stepHeight = 3f;
 
         while (t < 1f)
         {
