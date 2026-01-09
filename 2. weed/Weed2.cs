@@ -16,14 +16,13 @@ public class Weed2 : MonoBehaviour
     public Weedpart2 root; // 뿌리가 몸에 붙음 
 
     [Header("position")]
-    private Vector3 defaultRootPos;
     public Transform parent;
     private Vector3 targetPos;
-    private Vector3 HeadRootDir;
+    public Transform rootTarget;
 
     [Header("offsets")]
 
-    public float stepDist = 4.0f;
+    public float stepDist = 10.0f;
     private float offset;
 
     [Header("debug")]
@@ -40,7 +39,6 @@ public class Weed2 : MonoBehaviour
 
     void Start()
     {
-        defaultRootPos = parent.InverseTransformPoint(root.transform.position);
         if (targetPosPrefab != null)
         {
             targetPosInstance = Instantiate(targetPosPrefab);
@@ -52,11 +50,10 @@ public class Weed2 : MonoBehaviour
 
     void Update()
     {
-        if (parent != null)
-        {
-            root.transform.position = parent.TransformPoint(defaultRootPos);
-        }
-        Vector3 movingVelocity = (root.transform.position - head.transform.position).normalized;
+
+        root.rootFollowTarget(rootTarget);
+
+        movingDir = (root.transform.position - rootTarget.transform.position).normalized;
 
         bodyFABRIK();
 
@@ -64,14 +61,15 @@ public class Weed2 : MonoBehaviour
         //머리 - 뿌리 거리, 방향
         Vector3 diff = targetPos - root.transform.position;
         rootToTargetDist = Vector3.Distance(root.transform.position, targetPos);
-        HeadRootDir = root.transform.position - head.transform.position;
 
         //x축이나 z축이 일정 거리 이상 멀어지면 새 타겟을 구한다.
         //if (Mathf.Abs(diff.x) > 10 || Mathf.Abs(diff.z) > 10)
         if (rootToTargetDist > 8)
         {
-            Vector3 predictPos = root.transform.position + (movingVelocity * stepDist);
-            if (movingVelocity.magnitude < 0.1f)
+            float off = Random.Range(0f, 1f);
+
+            Vector3 predictPos = root.transform.position + (movingDir * stepDist * off);
+            if (movingDir.magnitude < 0.1f)
             {
                 predictPos += Random.insideUnitSphere;
             }
@@ -85,19 +83,33 @@ public class Weed2 : MonoBehaviour
     // 뿌리부분은 고정되어서 움직이지 않음 
     void bodyFABRIK()
     {
-        head.transform.position = Vector3.Lerp(head.transform.position, targetPos, Time.deltaTime); offset = rootToTargetDist / (parts.Length - 1);
+        // 1. 머리는 타겟으로 이동 (움직이지 않을 때)
+        if (!isMoving)
+        {
+            head.transform.position = Vector3.Lerp(head.transform.position, targetPos, Time.deltaTime * 10f);
+        }
+
+        offset = rootToTargetDist / (parts.Length - 1);
 
         for (int i = parts.Length - 2; i > 0; i--)
         {
             Weedpart2 current = parts[i];
-            Weedpart2 lower = parts[i + 1]; // 5번인 머리부터 
+            Weedpart2 lower = parts[i + 1]; // 내 바로 앞(머리 쪽) 파트
 
+            Vector3 HeadToRootDir = (root.transform.position - head.transform.position).normalized;
             Vector3 dir = (current.transform.position - lower.transform.position).normalized;
 
-            Vector3 finalDir = Vector3.Lerp(dir, HeadRootDir, 0.5f).normalized;
+            Vector3 finalDir = Vector3.Lerp(dir, HeadToRootDir, 0.5f).normalized;
 
-            Vector3 finalPos = lower.transform.position + finalDir * offset;
-            current.transform.position = Vector3.Lerp(current.transform.position, finalPos, Time.deltaTime);
+            float t = (float)i / (parts.Length - 1);
+
+            float curve = Mathf.Sin(t * Mathf.PI);
+            Vector3 sagVector = (Vector3.down) + (movingDir);
+
+            Vector3 finalPos = lower.transform.position + (finalDir * offset);
+            finalPos += sagVector * curve;
+
+            current.transform.position = Vector3.Lerp(current.transform.position, finalPos, Time.deltaTime * 20f);
             current.transform.LookAt(lower.transform);
         }
     }
@@ -143,4 +155,5 @@ public class Weed2 : MonoBehaviour
         yield return null;
 
     }
+
 }
