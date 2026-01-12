@@ -38,7 +38,6 @@ public class Weed2 : MonoBehaviour
         }
         targetPos = head.SetTargetGround(Vector3.zero);
         head.transform.position = targetPos;
-        prevPos = root.transform.position;
     }
 
     void Update()
