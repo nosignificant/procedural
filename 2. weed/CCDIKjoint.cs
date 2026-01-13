@@ -6,6 +6,8 @@ public class CCDIKjoint : MonoBehaviour
     Vector3 perpendicular; void Start() { perpendicular = axis.Perpendicular(); }
     public bool isTip;
 
+    public float maxAngle = 360f;
+
     public void evalute(Transform tip, Transform target)
     {
         //손끝을 목적지로 옮기기 
@@ -19,5 +21,11 @@ public class CCDIKjoint : MonoBehaviour
         transform.rotation = Quaternion.FromToRotation(transform.rotation * axis,
         transform.parent.rotation * axis
         ) * transform.rotation;
+
+        //hinge
+        Vector3 limit = (transform.rotation * perpendicular).ConstrainToNormal(transform.parent.rotation * perpendicular, maxAngle);
+
+        transform.rotation = Quaternion.FromToRotation(transform.rotation * perpendicular, limit)
+        * transform.rotation;
     }
 }

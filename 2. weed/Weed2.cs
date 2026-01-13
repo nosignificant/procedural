@@ -107,7 +107,6 @@ public class Weed2 : MonoBehaviour
         if (movingDir.magnitude < 0.1f)
             predictPos += Random.insideUnitSphere;
         return predictPos;
-
     }
     IEnumerator MoveFoot(Vector3 predictPos)
     {

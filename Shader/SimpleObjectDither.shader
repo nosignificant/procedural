@@ -89,5 +89,6 @@ Shader "Custom/SimpleObjectDither"
             }
             ENDHLSL
         }
+        
     }
 }
