@@ -4,11 +4,15 @@ public class rotate : MonoBehaviour
 {
     public float rotateSpeed;
     public Vector3 rotateAxis;
+    public float startOffset = 0f;
 
-    // Update is called once per frame
+    private float timer = 0f;
     void Update()
     {
-        rot();
+        timer += Time.deltaTime;
+
+        if (timer > startOffset)
+            rot();
     }
 
     void rot()

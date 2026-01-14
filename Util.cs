@@ -27,15 +27,5 @@ public static class Util
         return Vector3.Slerp(direction.normalized, normalDirection.normalized, (angle - maxAngle) / angle) * direction.magnitude;
     }
 
-    //레이캐스트로 땅 위치 찾기 - 아래로 
-    public static Vector3 SetTargetGround(Vector3 movingDir, LayerMask ground, Transform transform)
-    {
-        Vector3 rayOrigin = movingDir + (Vector3.up * 10.0f);
 
-        Debug.DrawRay(rayOrigin, Vector3.down * 20f, Color.red, 1.0f);
-        bool found = Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit rest, 500, ground);
-
-        if (found) return rest.point;
-        else return transform.position;
-    }
 }
