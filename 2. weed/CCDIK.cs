@@ -19,9 +19,9 @@ public class CCDIK : MonoBehaviour
     void Update()
     {
         //발이면 레이캐스트 
-        if (isFoot)
+        //if (isFoot)
         {
-            target.position = FootUtils.SetTargetGround(tip.position, ground);
+            //target.position = FootUtils.SetTargetGround(target.position, ground);
 
             // 거리가 멀면 ik하지 않음 
             //if (FootUtils.isFootFarfromTarget(from.position, to.position, criteria))

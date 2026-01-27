@@ -121,8 +121,6 @@ public class Weed2 : MonoBehaviour
         }
         targetPos = newPos;
 
-        // 타겟 - 나 해야 양수 방향 나옴 
-        Vector3 dir = targetPos - head.transform.position;
         Vector3 startPos = head.transform.position;
         float t = 0f;
         float stepTime = 4f;

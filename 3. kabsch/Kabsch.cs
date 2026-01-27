@@ -6,9 +6,9 @@ public class Kabsch : MonoBehaviour
     public int iteration = 9;
 
     [Header("Rotation Limit (New)")]
-    public bool enableLimit = true;       // 회전 제한 켜기/끄기
+    public bool enableLimit = true;
     [Range(0, 180)]
-    public float maxRotationAngle = 180f;  // ★ 최대 45도까지만 회전 허용 (이거 넘어가면 45도에 고정)
+    public float maxRotationAngle = 180f;
 
     [Header("Targets")]
     public Transform target;
@@ -57,21 +57,15 @@ public class Kabsch : MonoBehaviour
         // 1. 최적 회전 계산
         Quaternion optimalRot = SolveKabsch();
 
-        // ★ 2. 회전 각도 제한 로직 (New) ★
         if (enableLimit)
         {
-            // 기본 상태(Identity)와 계산된 회전(optimalRot) 사이의 각도 차이 계산
             float angle = Quaternion.Angle(Quaternion.identity, optimalRot);
 
-            // 만약 각도가 제한치(maxRotationAngle)보다 크다면?
             if (angle > maxRotationAngle)
             {
-                // 강제로 제한 각도까지만 회전시킨 값으로 덮어씌움
                 optimalRot = Quaternion.RotateTowards(Quaternion.identity, optimalRot, maxRotationAngle);
             }
         }
-
-        // 3. 제한된 회전 적용
         ApplyToInChildren(optimalRot);
     }
 

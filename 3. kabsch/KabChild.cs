@@ -10,11 +10,11 @@ public class KabChild : MonoBehaviour
 
     [Header("Formation Settings")]
     public float formationRadius = 5.0f;
-    private Vector3 baseFormationOffset;   // 원래 나의 고정 자리
+    private Vector3 baseFormationOffset;
 
     [Header("Idle Settings (New)")]
-    public float idleStrength = 2.0f; // ★ 제자리에서 움직이는 범위 (크면 많이 돌아다님)
-    public float idleSpeed = 1.0f;    // ★ 제자리에서 움직이는 속도 (크면 빨리 움직임)
+    public float idleStrength = 2.0f;
+    public float idleSpeed = 1.0f;
 
     [Header("Separation Settings")]
     public float separationDist = 3.0f;
@@ -27,7 +27,6 @@ public class KabChild : MonoBehaviour
     void Start()
     {
         kabManager = GetComponentInParent<Kabsch>();
-        // 각자 다른 랜덤 값을 가짐 (이걸로 idle 움직임 타이밍도 다르게 함)
         noiseOffset = Random.Range(0f, 100f);
 
         Vector2 randomCircle = Random.insideUnitCircle * formationRadius;
