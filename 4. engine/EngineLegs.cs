@@ -11,7 +11,7 @@ public class EngineLegs : MonoBehaviour
     [Header("float")]
 
     public float followTriggerDist = 1f;
-    public float stride = 5f;
+    public float stride = 3f;
 
     public LayerMask ground;
 
@@ -19,9 +19,16 @@ public class EngineLegs : MonoBehaviour
     private bool isMoving = false;
     private Coroutine moveCoroutine;
     private Transform groundTarget;
-    private Transform[] defaultLegOffsets;
+    private Vector3[] defaultLegOffsets;
 
     private Vector3 movingDir;
+
+    void Start()
+    {
+        defaultLegOffsets = new Vector3[tipTargets.Length];
+        for (int i = 0; i < tipTargets.Length; i++)
+            defaultLegOffsets[i] = body.InverseTransformPoint(tipTargets[i].position);
+    }
 
     void Update()
     {
@@ -33,11 +40,25 @@ public class EngineLegs : MonoBehaviour
 
         //거리가 followTrigger보다 멀면 
         if (Dist > followTriggerDist)
-        {
-            //FootUtil.BodyFollowTarget(body, tipTargets[0], 5f, ground);
-            if (!isMoving)
-                moveCoroutine = StartCoroutine(moveForward());
-        }
+            Move();
+        else
+            Stop();
+
+    }
+    void Move()
+    {
+        FootUtil.RotBody(body, movingDir);
+        body.position = Vector3.Lerp(body.position, FootAvgPos(), Time.deltaTime * 5);
+        if (!isMoving)
+            moveCoroutine = StartCoroutine(moveForward());
+    }
+
+    void Stop()
+    {
+        StartCoroutine(ReturnToStance());
+
+        if (moveCoroutine != null) StopCoroutine(moveCoroutine);
+        isMoving = false;
     }
 
     IEnumerator moveForward()
@@ -49,28 +70,47 @@ public class EngineLegs : MonoBehaviour
 
         for (int i = 0; i < tipTargets.Length; i++)
         {
-            Vector3 startPos = tipTargets[i].position;
-            Vector3 targetPos = FootUtil.ForwardStride(tipTargets[i].position, movingDir, stride);
+            Vector3 myIdealPos = body.TransformPoint(defaultLegOffsets[i]);
+            Vector3 targetPos = FootUtil.ForwardStride(myIdealPos, movingDir, stride);
 
             //목표 위치는 몸통의 앞 + 보폭
             targetPos = FootUtil.SetTargetGround(targetPos, ground);
 
-            //각 발을 앞으로 이동
-            float t = 0f;
-
-            while (t < 1f)
-            {
-                t += Time.fixedDeltaTime / stepTime;
-                Vector3 currentPos = Vector3.Lerp(startPos, targetPos, t);
-                float heightCurve = Mathf.Sin(t * Mathf.PI) * stepHeight;
-
-                tipTargets[i].position = currentPos + Vector3.up * heightCurve;
-                yield return null;
-            }
+            yield return StartCoroutine(FootUtil.lerpMove(tipTargets[i], targetPos, stepTime, stepHeight));
 
             tipTargets[i].position = targetPos;
         }
+        yield return new WaitForSeconds(0.1f);
+
         isMoving = false;
-        yield return new WaitForSeconds(1f);
+    }
+
+    IEnumerator ReturnToStance()
+    {
+        isMoving = true;
+        for (int i = 0; i < tipTargets.Length; i++)
+        {
+            Vector3 returnPos = body.TransformPoint(defaultLegOffsets[i]);
+            returnPos = FootUtil.SetTargetGround(returnPos, ground);
+
+            tipTargets[i].position = Vector3.Lerp(tipTargets[i].position, returnPos, Time.deltaTime * 5);
+        }
+        isMoving = false;
+
+        yield return null;
+    }
+
+
+    Vector3 FootAvgPos()
+    {
+        Vector3 movedVector = Vector3.zero;
+
+        for (int i = 0; i < tipTargets.Length; i++)
+        {
+            movedVector += tipTargets[i].position;
+        }
+        return movedVector / tipTargets.Length;
+
     }
 }
+
