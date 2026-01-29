@@ -34,7 +34,7 @@ public class EngineLegs : MonoBehaviour
         //거리가 followTrigger보다 멀면 
         if (Dist > followTriggerDist)
         {
-            FootUtil.BodyFollowTarget(body, followingTarget, 5f, ground);
+            //FootUtil.BodyFollowTarget(body, tipTargets[0], 5f, ground);
             if (!isMoving)
                 moveCoroutine = StartCoroutine(moveForward());
         }
