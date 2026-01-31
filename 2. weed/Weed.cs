@@ -2,7 +2,7 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-public class WeedControl : MonoBehaviour
+public class Weed : MonoBehaviour
 {
     // 1. 뿌리는 땅에 박혀 있음
     // 2. 제일 윗부분은 타겟을 향함

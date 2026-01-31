@@ -22,6 +22,36 @@ public static class FootUtil
         }
     }
 
+    public static Vector3 SetTargetNearest(Vector3 targetPos, Transform rootTransform)
+    {
+        // 1. 목표 지점 반경 2m(검사 범위) 내의 모든 콜라이더를 가져옴
+        // (레이어 마스크 없이 쓰면 모든 물체 검색)
+        Collider[] colliders = Physics.OverlapSphere(targetPos, 2.0f);
+
+        Vector3 bestPoint = targetPos;
+        float minDistance = float.MaxValue;
+        bool found = false;
+
+        foreach (Collider col in colliders)
+        {
+            if (col.isTrigger) continue;
+            if (col.transform.IsChildOf(rootTransform)) continue;
+
+            // 3. 해당 콜라이더 표면 중 targetPos와 가장 가까운 점 찾기
+            Vector3 point = col.ClosestPoint(targetPos);
+            float dist = Vector3.Distance(targetPos, point);
+
+            // 4. 지금까지 찾은 것 중 제일 가까우면 갱신
+            if (dist < minDistance)
+            {
+                minDistance = dist;
+                bestPoint = point;
+                found = true;
+            }
+        }
+        return found ? bestPoint : targetPos;
+    }
+
     //앞으로 발뻗을 위치 
     public static Vector3 ForwardStride(Vector3 nowPos, Vector3 movingDir, float stepDist)
     {

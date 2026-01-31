@@ -30,8 +30,8 @@ public class Kabsch2 : MonoBehaviour
     void Start()
     {
         kabschSpawner = GetComponent<KabschSpawner>();
-
-        kabschSpawner.Spawn(out refChild, out inChild);
+        if (kabschSpawner != null)
+            kabschSpawner.Spawn(out refChild, out inChild);
 
         originalInLocalPos = new Vector3[inChild.Length];
         currentRefPoints = new Vector3[refChild.Length];
@@ -61,6 +61,7 @@ public class Kabsch2 : MonoBehaviour
         CalculateRefCenter();
 
         if (centerInstance != null) centerInstance.transform.position = avgRefPos;
+        if (kabschSpawner != null) kabschSpawner.SpawnerMove(avgRefPos);
 
         // 1. 최적 회전 계산
         Quaternion targetRot = SolveKabsch();
