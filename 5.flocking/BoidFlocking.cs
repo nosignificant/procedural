@@ -6,22 +6,29 @@ public class BoidFlocking : MonoBehaviour
 {
     private Boid boid;
 
+    public Transform target;
 
     [Header("Settings")]
     public float neighborRadius = 5f; // 이웃 인식 범위
     public float separationRadius = 2.0f; // 충돌 회피 범위
 
+    public float boundaryRadius = 2.0f; // 감속 범위
+
     [Header("Weights")]
     public float alignmentWeight = 1.0f;
     public float cohesionWeight = 1.0f;
     public float separationWeight = 1.5f;
-    public float boundaryWeight = 1.0f;
-
+    public float boundaryWeight = 2.0f;
+    public float noiseWeight = 0.5f;
+    public float noiseScale = 1.0f;
+    public float maxSteerForce = 10.0f;
     private List<Boid> neighbors = new List<Boid>();
 
     void Start()
     {
         boid = GetComponent<Boid>();
+        target = GameObject.Find("Target").transform;
+
     }
 
     void Update()
@@ -31,14 +38,29 @@ public class BoidFlocking : MonoBehaviour
         Vector3 alignment = CalculateAlignment();
         Vector3 cohesion = CalculateCohesion();
         Vector3 separation = CalculateSeparation();
-        Vector3 follow = followTarget();
+        Vector3 Arrive = KeepInBounds();
+        Vector3 randomMove = CalculateNoise();
 
         Vector3 steeringForce = (alignment * alignmentWeight) +
                                 (cohesion * cohesionWeight) +
                                 (separation * separationWeight) +
-                                (follow * boundaryWeight);
+                                (randomMove * noiseWeight) +
+                                (Arrive * boundaryWeight);
 
-        boid.velocity += steeringForce * Time.deltaTime;
+        Vector3 clampedSteering = Vector3.ClampMagnitude(steeringForce, maxSteerForce);
+        boid.velocity += clampedSteering * Time.deltaTime;
+
+        if (target != null)
+        {
+            float dist = Vector3.Distance(transform.position, target.position);
+
+            if (dist < boundaryRadius && boid.velocity.magnitude > 7.0f)
+            {
+                float t = 1f - (dist / boundaryRadius);
+                boid.velocity = Vector3.Lerp(boid.velocity, Vector3.zero, t * Time.deltaTime * 3.0f);
+            }
+        }
+
     }
 
     void FindNeighbors()
@@ -48,7 +70,7 @@ public class BoidFlocking : MonoBehaviour
 
         foreach (Collider col in colliders)
         {
-            if (col.transform == transform) return;
+            if (col.transform == transform) continue;
 
             Boid neighborBoid = col.GetComponent<Boid>();
             if (neighborBoid != null)
@@ -77,14 +99,15 @@ public class BoidFlocking : MonoBehaviour
         if (neighbors.Count == 0) return Vector3.zero;
 
         Vector3 centerOfMass = Vector3.zero;
-        //중심 위치는 각 이웃 위치 합의 평균
         foreach (Boid neighbor in neighbors)
             centerOfMass += neighbor.transform.position;
 
         centerOfMass /= neighbors.Count;
-        //중심으로 향하기
-        //중심에서부터 멀리있으면 가까이 가려는 힘이 커질테니 그에 대한 영향을 받지 않기 위해 normalize 해줌 
-        return (centerOfMass - transform.position).normalized;
+
+        Vector3 targetDir = centerOfMass - transform.position;
+        Vector3 desiredVelocity = targetDir.normalized * boid.maxVelocity;
+
+        return desiredVelocity - boid.velocity;
     }
 
     //너무 많이 다가가면 멀어지게 함
@@ -99,20 +122,40 @@ public class BoidFlocking : MonoBehaviour
             float dist = awayDir.magnitude;
             //separationRadius 보다 가까이 있으면 밀어내는 힘을 더함
             if (dist < separationRadius && dist > 0)
-                // 멀어지는 방향 * 1/거리(거리에 반비례해서 힘이 강해짐)
-                separationForce += awayDir.normalized / dist;
+            {
+                if (dist > 0.01f)
+                {
+                    // 멀어지는 방향 * 1/거리(거리에 반비례해서 힘이 강해짐)
+                    separationForce += awayDir.normalized / dist;
+                }
+            }
+
         }
         return separationForce;
     }
-
-    private Vector3 followTarget()
+    private Vector3 KeepInBounds()
     {
-        if (boid.target == null) return Vector3.zero;
-        Vector3 offset = boid.target.position - transform.position;
-        float dist = offset.magnitude;
+        if (target == null) return Vector3.zero;
 
-        if (dist > 10f)
-            return offset.normalized;
-        return Vector3.zero;
+        Vector3 centerOffset = target.position - transform.position;
+        float dist = centerOffset.magnitude;
+
+        if (dist > boundaryRadius)
+            return centerOffset.normalized * boid.maxVelocity;
+
+        return -boid.velocity * dist;
+    }
+
+    private Vector3 CalculateNoise()
+    {
+        float idOffset = boid.GetInstanceID() * 0.1f;
+
+        float xNoise = Mathf.PerlinNoise(Time.time * noiseScale + idOffset, 0);
+        float yNoise = Mathf.PerlinNoise(Time.time * noiseScale + idOffset, 100);
+        float zNoise = Mathf.PerlinNoise(Time.time * noiseScale + idOffset, 200);
+
+        Vector3 noiseDir = new Vector3(xNoise, yNoise, zNoise);
+
+        return noiseDir.normalized;
     }
 }
