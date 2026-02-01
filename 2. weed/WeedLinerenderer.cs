@@ -7,17 +7,21 @@ public class DrawLine : MonoBehaviour
 
     void Awake()
     {
-        points = GetComponent<Weed3>().parts;
+        Weed3 weed = GetComponent<Weed3>();
         lineRenderer = GetComponent<LineRenderer>();
-        SetupLine(points);
+
+        if (weed != null) points = weed.parts;
+        if (points != null) lineRenderer.positionCount = points.Length;
     }
 
-    void SetupLine(Transform[] points)
+    void Update()
     {
-        lineRenderer.positionCount = points.Length;
-        for (int i = 0; i < points.Length; i++)
+        if (points != null && lineRenderer != null)
         {
-            lineRenderer.SetPosition(i, points[i].position);
+            for (int i = 0; i < points.Length; i++)
+            {
+                lineRenderer.SetPosition(i, points[i].position);
+            }
         }
     }
 }
