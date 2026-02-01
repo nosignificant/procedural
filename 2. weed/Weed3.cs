@@ -1,134 +1,148 @@
-
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+
 public class Weed3 : MonoBehaviour
 {
     public LayerMask ground;
 
-    [Header("position")]
-
-    //발과 머리는 직접 코드 상으로 이동시키지 않는다.
-    //tipTarget과 target을 이동시킨 후 따라다니게 만든다.
+    [Header("Components")]
     public Transform foot;
-    //top은 그냥 이동용으로만 쓰자 
     public Transform top;
-
     public Transform[] parts;
     public Transform tipTarget;
-    private Vector3 targetPos;
     public Transform target;
 
-    [Header("offsets")]
-
-    public float stride = 10.0f;
-
-    public float stepThreshold = 10f;
+    [Header("Settings")]
+    public float stride = 2f;
     private float offset;
 
     private float topToTargetDist;
 
-    [Header("moving dir")]
+    [Header("Moving")]
     private Vector3 movingDir;
     private bool isMoving = false;
+    private Vector3 targetPos;
+    private float maxBodyLength;
 
     void Start()
     {
+        maxBodyLength = stride * 1.1f;
+
         if (tipTarget != null)
         {
-            targetPos = tipTarget.position;
-            targetPos = FootUtil.SetTargetGround(targetPos, ground);
+            Vector3 initPos = tipTarget.position;
+            initPos = FootUtil.SetTargetNearest(initPos, ground);
+
+            targetPos = initPos;
             tipTarget.position = targetPos;
+
+            if (target != null) top.position = target.position;
         }
     }
 
     void Update()
     {
-        foot.position = Vector3.Lerp(foot.position, tipTarget.position, Time.deltaTime * 10f);
-        top.position = target.position;
 
-        //1. 방향: 따라다닐 타겟과 발 
-        movingDir = (target.position - foot.position).normalized;
+        MoveFootandClampedTop();
 
-        //2. 몸정렬
         bodyFABRIK();
 
-        //3. 타겟까지 거리 구하고 발을 뗄지 말지 결정
-        topToTargetDist = Vector3.Distance(top.transform.position, targetPos);
+        float currentBodyLen = Vector3.Distance(foot.position, top.position);
 
-        if (topToTargetDist > stepThreshold)
-            Move();
-        else Stop();
-    }
-
-    void Move()
-    {
-        if (!isMoving)
-            StartCoroutine(MoveFoot());
-    }
-
-    void Stop()
-    {
-        isMoving = false;
-        StopCoroutine(MoveFoot());
-    }
-
-    //fabrik 몸 정렬 알고리즘 
-    void bodyFABRIK()
-    {
-        offset = topToTargetDist / (parts.Length - 1);
-
-        for (int i = parts.Length - 2; i > 0; i--)
+        // 현재 몸 길이가 보폭을 넘으면 발을 뗌
+        if (!isMoving && currentBodyLen > stride)
         {
-            Transform current = parts[i];
-            Transform lower = parts[i + 1];
-
-            //정렬되어야할 방향: 머리 - 발 끝 
-            Vector3 footTotopDir = (top.position - tipTarget.position).normalized;
-
-            //내 바로 아래 놈 위치
-            Vector3 dir = (current.position - lower.position).normalized;
-            //방향 정렬
-            Vector3 finalDir = Vector3.Lerp(dir, footTotopDir, 0.5f).normalized;
-
-            //약간 곡선으로 만들기
-            float t = (float)i / (parts.Length - 1);
-
-            float curve = Mathf.Sin(t * Mathf.PI);
-            Vector3 sagVector = (Vector3.down) + (movingDir);
-
-            //최종 위치
-            Vector3 finalPos = lower.transform.position + (finalDir * offset);
-            finalPos += sagVector * curve;
-            //이동
-            current.position = Vector3.Lerp(current.position, finalPos, Time.deltaTime * 20f);
-            current.LookAt(lower.transform);
+            StartCoroutine(MoveFoot());
         }
+    }
+
+    void MoveFootandClampedTop()
+    {
+        foot.position = Vector3.Lerp(foot.position, tipTarget.position, Time.deltaTime * 15f);
+
+        Vector3 vectorToTarget = target.position - foot.position;
+        Vector3 clampedVector = Vector3.ClampMagnitude(vectorToTarget, maxBodyLength);
+
+        Vector3 constrainedTopPos = foot.position + clampedVector;
+
+        top.position = Vector3.Lerp(top.position, constrainedTopPos, Time.deltaTime * 5f);
     }
 
     IEnumerator MoveFoot()
     {
         isMoving = true;
 
-        targetPos = FootUtil.ForwardStride(foot.position, movingDir, stride);
-        targetPos = FootUtil.SetTargetGround(targetPos, ground);
+        Vector3 dirToTarget = (target.position - foot.position).normalized;
+        Vector3 destPos = foot.position + (dirToTarget * stride);
 
-        float stepTime = 4f;
+        // 1. 가장 가까운 벽/땅 위치 찾기
+        targetPos = FootUtil.SetTargetNearest(destPos, ground, 5.0f);
+
+        // -------------------------------------------------------------
+        // [수정 1] 유효성 검사 (찾은 위치가 원래 허공 위치랑 똑같으면?)
+        // -------------------------------------------------------------
+        // float 정밀도 오차를 고려해 아주 작은 거리차이로 비교
+        if (Vector3.Distance(destPos, targetPos) < 0.01f)
+        {
+            // 땅을 못 찾았으므로 이동 취소
+            isMoving = false;
+            yield break;
+        }
+
+        // -------------------------------------------------------------
+        // [수정 2] 노말 구하기 (인자 변경)
+        // -------------------------------------------------------------
+        // 이제 발(foot) 위치가 아니라 몸통(top) 위치를 기준으로 
+        // "몸통에서 발 쪽으로 쏘았을 때의 바닥 각도"를 구합니다.
+        Vector3 targetNormal = FootUtil.GetNormal(targetPos, top.position, ground);
+
+        float stepTime = 0.4f;
         float stepHeight = 3f;
 
-        yield return StartCoroutine(FootUtil.lerpMove(tipTarget, targetPos, stepTime, stepHeight));
+        yield return StartCoroutine(FootUtil.lerpMove(tipTarget, targetPos, stepTime, stepHeight, targetNormal));
 
-        //발 땅에 갖다 놓음
-        tipTarget.transform.position = targetPos;
+        tipTarget.position = targetPos;
+
+        yield return new WaitForSeconds(0.05f);
+
         isMoving = false;
+    }
+
+    void bodyFABRIK()
+    {
+        topToTargetDist = Vector3.Distance(top.position, tipTarget.position);
+        offset = topToTargetDist / (parts.Length - 1);
+
+        Vector3 surfaceNormal = FootUtil.GetNormal(top.position, tipTarget.position, ground);
+
+        for (int i = parts.Length - 2; i >= 0; i--)
+        {
+            Transform current = parts[i];
+            Transform lower = parts[i + 1];
+
+            Vector3 footTotopDir = (top.position - tipTarget.position).normalized;
+            Vector3 dir = (current.position - lower.position).normalized;
+            Vector3 finalDir = Vector3.Lerp(dir, footTotopDir, 0.5f).normalized;
+
+            float t = (float)i / (parts.Length - 1);
+            float curve = Mathf.Sin(t * Mathf.PI);
+
+            //노말 방향으로 굽힘
+            Vector3 sagVector = surfaceNormal;
+
+            Vector3 finalPos = lower.transform.position + (finalDir * offset);
+            finalPos += sagVector * curve * 2.0f;
+
+            current.position = Vector3.Lerp(current.position, finalPos, Time.deltaTime * 20f);
+
+            current.LookAt(lower.transform, surfaceNormal);
+        }
     }
 
     public void SetTarget(Transform newTarget)
     {
         this.target = newTarget;
-
-        if (target != null)
-
-            tipTarget.position = target.position;
+        if (target != null) tipTarget.position = target.position;
     }
 }

@@ -22,35 +22,49 @@ public static class FootUtil
         }
     }
 
-    public static Vector3 SetTargetNearest(Vector3 targetPos, Transform rootTransform)
+    // 상하좌우 상관없이 가장 가까운 표면을 찾음
+    public static Vector3 SetTargetNearest(Vector3 targetPos, LayerMask ground, float searchRadius = 5.0f)
     {
-        // 1. 목표 지점 반경 2m(검사 범위) 내의 모든 콜라이더를 가져옴
-        // (레이어 마스크 없이 쓰면 모든 물체 검색)
-        Collider[] colliders = Physics.OverlapSphere(targetPos, 2.0f);
+        Collider[] colliders = Physics.OverlapSphere(targetPos, searchRadius, ground);
+
+        if (colliders.Length == 0)
+        {
+            return targetPos;
+        }
 
         Vector3 bestPoint = targetPos;
         float minDistance = float.MaxValue;
-        bool found = false;
 
         foreach (Collider col in colliders)
         {
-            if (col.isTrigger) continue;
-            if (col.transform.IsChildOf(rootTransform)) continue;
-
-            // 3. 해당 콜라이더 표면 중 targetPos와 가장 가까운 점 찾기
+            // ClosestPoint: 해당 콜라이더 표면 중 targetPos와 제일 가까운 점을 반환
             Vector3 point = col.ClosestPoint(targetPos);
+
             float dist = Vector3.Distance(targetPos, point);
 
-            // 4. 지금까지 찾은 것 중 제일 가까우면 갱신
             if (dist < minDistance)
             {
                 minDistance = dist;
                 bestPoint = point;
-                found = true;
             }
         }
-        return found ? bestPoint : targetPos;
+
+        return bestPoint;
     }
+
+    public static Vector3 GetNormal(Vector3 targetSurfacePos, Vector3 referenceUpPos, LayerMask ground)
+    {
+        Vector3 dirToSurface = (targetSurfacePos - referenceUpPos).normalized;
+        if (dirToSurface == Vector3.zero) dirToSurface = Vector3.down;
+
+        Vector3 rayOrigin = targetSurfacePos - (dirToSurface * 2.0f);
+        if (Physics.Raycast(rayOrigin, dirToSurface, out RaycastHit hit, 5.0f, ground))
+        {
+            return hit.normal;
+        }
+        return (referenceUpPos - targetSurfacePos).normalized;
+    }
+
 
     //앞으로 발뻗을 위치 
     public static Vector3 ForwardStride(Vector3 nowPos, Vector3 movingDir, float stepDist)
@@ -61,25 +75,36 @@ public static class FootUtil
     }
 
     //발 떼기 
-    public static IEnumerator lerpMove(Transform start, Vector3 targetPos, float stepTime, float stepHeight)
+    public static IEnumerator lerpMove(Transform start, Vector3 targetPos, float stepTime, float stepHeight, Vector3 surfaceNormal)
     {
         Vector3 startPos = start.position;
-
         float t = 0f;
 
         while (t < 1f)
         {
-            t += Time.fixedDeltaTime / stepTime;
-            Vector3 currentPos = Vector3.Lerp(start.position, targetPos, t);
+            t += Time.deltaTime / stepTime;
+
+            // t가 1을 넘지 않게 안전장치
+            if (t > 1f) t = 1f;
+
+            Vector3 currentPos = Vector3.Lerp(startPos, targetPos, t);
+
+            // 0 ~ 1 ~ 0 의 사인파 곡선
             float heightCurve = Mathf.Sin(t * Mathf.PI) * stepHeight;
 
-            start.position = currentPos + Vector3.up * heightCurve;
+            // [중요] surfaceNormal 방향으로 들어올림
+            start.position = currentPos + (surfaceNormal * heightCurve);
+
             yield return null;
         }
 
         start.position = targetPos;
     }
 
+    public static IEnumerator lerpMove(Transform start, Vector3 targetPos, float stepTime, float stepHeight)
+    {
+        return lerpMove(start, targetPos, stepTime, stepHeight, Vector3.up);
+    }
 
     public static void RotBody(Transform body, Vector3 moveDir)
     {
