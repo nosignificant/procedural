@@ -16,7 +16,6 @@ public class Weed3 : MonoBehaviour
     [Header("Settings")]
     public float stride = 2f;
     private float offset;
-
     private float topToTargetDist;
 
     [Header("Moving")]
@@ -28,6 +27,8 @@ public class Weed3 : MonoBehaviour
     [Header("Draw")]
 
     public LineRender line;
+    private bool isDrawArrayInitialized = false;
+    private Transform[] drawPoints;
 
 
     void Start()
@@ -64,10 +65,15 @@ public class Weed3 : MonoBehaviour
         }
     }
 
+    //선 그리기
     void LateUpdate()
     {
-        if (line != null)
+        if (line != null && isDrawArrayInitialized)
+            line.Draw(drawPoints);
+
+        else if (line != null)
             line.Draw(parts);
+
     }
 
     void MoveFootandClampedTop()
@@ -92,22 +98,14 @@ public class Weed3 : MonoBehaviour
         // 1. 가장 가까운 벽/땅 위치 찾기
         targetPos = FootUtil.SetTargetNearest(destPos, ground);
 
-        // -------------------------------------------------------------
         // [수정 1] 유효성 검사 (찾은 위치가 원래 허공 위치랑 똑같으면?)
-        // -------------------------------------------------------------
-        // float 정밀도 오차를 고려해 아주 작은 거리차이로 비교
         if (Vector3.Distance(destPos, targetPos) < 0.01f)
         {
             // 땅을 못 찾았으므로 이동 취소
             isMoving = false;
             yield break;
         }
-
-        // -------------------------------------------------------------
-        // [수정 2] 노말 구하기 (인자 변경)
-        // -------------------------------------------------------------
-        // 이제 발(foot) 위치가 아니라 몸통(top) 위치를 기준으로 
-        // "몸통에서 발 쪽으로 쏘았을 때의 바닥 각도"를 구합니다.
+        // 노말 구하기 (인자 변경)
         Vector3 targetNormal = FootUtil.GetNormal(targetPos, top.position, ground);
 
         float stepTime = 0.4f;
@@ -142,10 +140,10 @@ public class Weed3 : MonoBehaviour
             float curve = Mathf.Sin(t * Mathf.PI);
 
             //노말 방향으로 굽힘
-            Vector3 sagVector = surfaceNormal;
+            //Vector3 sagVector = surfaceNormal;
 
             Vector3 finalPos = lower.transform.position + (finalDir * offset);
-            finalPos += sagVector * curve * 2.0f;
+            //finalPos += sagVector * curve * 2.0f;
 
             current.position = Vector3.Lerp(current.position, finalPos, Time.deltaTime * 20f);
 
@@ -153,9 +151,26 @@ public class Weed3 : MonoBehaviour
         }
     }
 
+    // Weed3.cs 내부의 SetTarget 함수
     public void SetTarget(Transform newTarget)
     {
         this.target = newTarget;
         if (target != null) tipTarget.position = target.position;
+
+        // [핵심] Start()보다 SetTarget이 먼저 실행될 경우를 대비한 안전장치
+        if (drawPoints == null && parts != null && parts.Length > 0)
+        {
+            drawPoints = new Transform[parts.Length + 1];
+            // 몸통 파츠들을 1번 인덱스부터 미리 채워둠
+            for (int i = 0; i < parts.Length; i++)
+                drawPoints[i + 1] = parts[i];
+        }
+
+        // 0번 자리에 따라다닐 대상(inChild)을 연결
+        if (drawPoints != null)
+        {
+            drawPoints[0] = target;
+            isDrawArrayInitialized = true;
+        }
     }
 }

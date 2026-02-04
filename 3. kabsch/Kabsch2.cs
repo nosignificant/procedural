@@ -33,6 +33,12 @@ public class Kabsch2 : MonoBehaviour
     {
         kabschSpawner = GetComponent<KabschSpawner>();
         line = GetComponent<LineRender>();
+
+        if (centerPrefab != null)
+            centerInstance = Instantiate(centerPrefab, parent != null ? parent : transform);
+
+        if (kabschSpawner != null && centerInstance != null) kabschSpawner.getKabschCenter(centerInstance.transform);
+
         if (kabschSpawner != null)
             kabschSpawner.Spawn(out refChild, out inChild);
 
@@ -42,8 +48,6 @@ public class Kabsch2 : MonoBehaviour
         //기본 모양 저장 
         InitOriginalShape();
 
-        if (centerPrefab != null)
-            centerInstance = Instantiate(centerPrefab, parent != null ? parent : transform);
     }
 
     void InitOriginalShape()
@@ -64,7 +68,6 @@ public class Kabsch2 : MonoBehaviour
         CalculateRefCenter();
 
         if (centerInstance != null) centerInstance.transform.position = avgRefPos;
-        if (kabschSpawner != null) kabschSpawner.SpawnerMove(avgRefPos);
 
         // 1. 최적 회전 계산
         Quaternion targetRot = SolveKabsch();
@@ -76,7 +79,7 @@ public class Kabsch2 : MonoBehaviour
     void LateUpdate()
     {
         if (line != null)
-            line.Draw(refChild);
+            line.Draw(inChild);
     }
 
 

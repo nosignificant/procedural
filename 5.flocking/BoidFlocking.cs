@@ -24,11 +24,15 @@ public class BoidFlocking : MonoBehaviour
     public float maxSteerForce = 10.0f;
     private List<Boid> neighbors = new List<Boid>();
 
+    [Header("draw")]
+    public LineRender line;
+
+
     void Start()
     {
         boid = GetComponent<Boid>();
         target = GameObject.Find("Target").transform;
-
+        line = GetComponent<LineRender>();
     }
 
     void Update()
@@ -54,12 +58,24 @@ public class BoidFlocking : MonoBehaviour
         {
             float dist = Vector3.Distance(transform.position, target.position);
 
-            if (dist < boundaryRadius && boid.velocity.magnitude > 7.0f)
+            if (dist > boundaryRadius * 2)
             {
-                float t = 1f - (dist / boundaryRadius);
-                boid.velocity = Vector3.Lerp(boid.velocity, Vector3.zero, t * Time.deltaTime * 3.0f);
+                boid.velocity = Vector3.Lerp(boid.velocity, Vector3.zero, Time.deltaTime);
             }
         }
+
+    }
+
+    void LateUpdate()
+    {
+        if (line == null) return;
+
+        Transform[] neighborTransforms = new Transform[neighbors.Count];
+
+        for (int i = 0; i < neighbors.Count; i++)
+            neighborTransforms[i] = neighbors[i].transform;
+
+        line.Draw(neighborTransforms);
 
     }
 
