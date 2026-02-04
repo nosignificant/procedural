@@ -15,7 +15,7 @@ public class KabschSpawner : MonoBehaviour
 
     public void SpawnerMove(Vector3 avgPos)
     {
-        transform.position = avgPos;
+        // transform.position = avgPos;
     }
 
     public void Spawn(out Transform[] generatedRefs, out Transform[] generatedIns)

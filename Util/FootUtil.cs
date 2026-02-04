@@ -23,7 +23,7 @@ public static class FootUtil
     }
 
     // 상하좌우 상관없이 가장 가까운 표면을 찾음
-    public static Vector3 SetTargetNearest(Vector3 targetPos, LayerMask ground, float searchRadius = 5.0f)
+    public static Vector3 SetTargetNearest(Vector3 targetPos, LayerMask ground, float searchRadius = 20.0f)
     {
         Collider[] colliders = Physics.OverlapSphere(targetPos, searchRadius, ground);
 

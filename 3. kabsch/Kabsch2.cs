@@ -17,6 +17,8 @@ public class Kabsch2 : MonoBehaviour
     [Header("Debug Visualizer")]
     public GameObject centerPrefab;
     public Transform parent;
+
+    public LineRender line;
     private GameObject centerInstance;
     private KabschSpawner kabschSpawner;
 
@@ -30,6 +32,7 @@ public class Kabsch2 : MonoBehaviour
     void Start()
     {
         kabschSpawner = GetComponent<KabschSpawner>();
+        line = GetComponent<LineRender>();
         if (kabschSpawner != null)
             kabschSpawner.Spawn(out refChild, out inChild);
 
@@ -70,6 +73,12 @@ public class Kabsch2 : MonoBehaviour
 
         ApplyToInChildren(currentSmoothedRot);
     }
+    void LateUpdate()
+    {
+        if (line != null)
+            line.Draw(refChild);
+    }
+
 
     void CalculateRefCenter()
     {

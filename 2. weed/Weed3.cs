@@ -25,9 +25,16 @@ public class Weed3 : MonoBehaviour
     private Vector3 targetPos;
     private float maxBodyLength;
 
+    [Header("Draw")]
+
+    public LineRender line;
+
+
     void Start()
     {
         maxBodyLength = stride * 1.1f;
+
+        line = GetComponent<LineRender>();
 
         if (tipTarget != null)
         {
@@ -57,6 +64,12 @@ public class Weed3 : MonoBehaviour
         }
     }
 
+    void LateUpdate()
+    {
+        if (line != null)
+            line.Draw(parts);
+    }
+
     void MoveFootandClampedTop()
     {
         foot.position = Vector3.Lerp(foot.position, tipTarget.position, Time.deltaTime * 15f);
@@ -77,7 +90,7 @@ public class Weed3 : MonoBehaviour
         Vector3 destPos = foot.position + (dirToTarget * stride);
 
         // 1. 가장 가까운 벽/땅 위치 찾기
-        targetPos = FootUtil.SetTargetNearest(destPos, ground, 5.0f);
+        targetPos = FootUtil.SetTargetNearest(destPos, ground);
 
         // -------------------------------------------------------------
         // [수정 1] 유효성 검사 (찾은 위치가 원래 허공 위치랑 똑같으면?)
