@@ -58,10 +58,8 @@ public class BoidFlocking : MonoBehaviour
         {
             float dist = Vector3.Distance(transform.position, target.position);
 
-            if (dist > boundaryRadius * 2)
-            {
+            if (dist > boundaryRadius)
                 boid.velocity = Vector3.Lerp(boid.velocity, Vector3.zero, Time.deltaTime);
-            }
         }
 
     }
@@ -109,7 +107,6 @@ public class BoidFlocking : MonoBehaviour
         return (averageVelocity - boid.velocity).normalized;
     }
 
-    //군집의 중심 위치로 모이려고 함: 중심 위치를 구하고 그 방향으로 다가감
     private Vector3 CalculateCohesion()
     {
         if (neighbors.Count == 0) return Vector3.zero;
@@ -159,7 +156,7 @@ public class BoidFlocking : MonoBehaviour
         if (dist > boundaryRadius)
             return centerOffset.normalized * boid.maxVelocity;
 
-        return -boid.velocity * dist;
+        return -boid.velocity * dist * dist;
     }
 
     private Vector3 CalculateNoise()
