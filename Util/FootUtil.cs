@@ -27,10 +27,7 @@ public static class FootUtil
     {
         Collider[] colliders = Physics.OverlapSphere(targetPos, searchRadius, ground);
 
-        if (colliders.Length == 0)
-        {
-            return targetPos;
-        }
+        if (colliders.Length == 0) return targetPos;
 
         Vector3 bestPoint = targetPos;
         float minDistance = float.MaxValue;
@@ -59,9 +56,7 @@ public static class FootUtil
 
         Vector3 rayOrigin = targetSurfacePos - (dirToSurface * 2.0f);
         if (Physics.Raycast(rayOrigin, dirToSurface, out RaycastHit hit, 5.0f, ground))
-        {
             return hit.normal;
-        }
         return (referenceUpPos - targetSurfacePos).normalized;
     }
 
@@ -84,15 +79,10 @@ public static class FootUtil
         {
             t += Time.deltaTime / stepTime;
 
-            // t가 1을 넘지 않게 안전장치
             if (t > 1f) t = 1f;
 
             Vector3 currentPos = Vector3.Lerp(startPos, targetPos, t);
-
-            // 0 ~ 1 ~ 0 의 사인파 곡선
             float heightCurve = Mathf.Sin(t * Mathf.PI) * stepHeight;
-
-            // [중요] surfaceNormal 방향으로 들어올림
             start.position = currentPos + (surfaceNormal * heightCurve);
 
             yield return null;
