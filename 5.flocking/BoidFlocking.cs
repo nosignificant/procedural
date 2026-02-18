@@ -9,10 +9,10 @@ public class BoidFlocking : MonoBehaviour
     public Transform target;
 
     [Header("Settings")]
-    public float neighborRadius = 5f; // 이웃 인식 범위
-    public float separationRadius = 2.0f; // 충돌 회피 범위
+    public float neighborRadius = 5f;
+    public float separationRadius = 2.0f;
 
-    public float boundaryRadius = 2.0f; // 감속 범위
+    public float boundaryRadius = 2.0f;
 
     [Header("Weights")]
     public float alignmentWeight = 1.0f;
@@ -92,7 +92,7 @@ public class BoidFlocking : MonoBehaviour
         }
     }
 
-    // 군집의 평균 속도(방향 * 속력)를 따라감 
+    // 군집의 평균 속도 따라감 
     private Vector3 CalculateAlignment()
     {
         if (neighbors.Count == 0) return Vector3.zero;
@@ -146,6 +146,8 @@ public class BoidFlocking : MonoBehaviour
         }
         return separationForce;
     }
+
+    //타겟 따라가게 하기 - 타겟 주변의 boundary를 나가면 중심방향으로, 중심 내에 있으면 감속 
     private Vector3 KeepInBounds()
     {
         if (target == null) return Vector3.zero;
@@ -153,9 +155,11 @@ public class BoidFlocking : MonoBehaviour
         Vector3 centerOffset = target.position - transform.position;
         float dist = centerOffset.magnitude;
 
+        //거리가 너무 멀면 중심방향으로 최고 속력으로 가기 
         if (dist > boundaryRadius)
-            return centerOffset.normalized * boid.maxVelocity;
+            return centerOffset.normalized * boid.maxVelocity / 2;
 
+        //중심 내에 있으면 현재속도 * 거리제곱만큼 감속 
         return -boid.velocity * dist * dist;
     }
 

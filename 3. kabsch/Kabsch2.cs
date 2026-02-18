@@ -78,8 +78,7 @@ public class Kabsch2 : MonoBehaviour
     }
     void LateUpdate()
     {
-        if (line != null)
-            line.Draw(inChild);
+        if (line != null) line.Draw(inChild);
     }
 
 

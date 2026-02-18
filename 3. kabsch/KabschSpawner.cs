@@ -2,10 +2,13 @@ using UnityEngine;
 
 public class KabschSpawner : MonoBehaviour
 {
+    // boid, 발 전체 총괄 소환
     public GameObject refPrefab;
     public GameObject inPrefab;
 
     public GameObject weedPrefab;
+
+    public GameObject legPrefab;
 
     public Transform center;
 
@@ -14,6 +17,8 @@ public class KabschSpawner : MonoBehaviour
     public int spawnCount = 100;
 
     public float initSpeed = 2f;
+
+
 
     public void getKabschCenter(Transform avgPos)
     {
@@ -41,10 +46,15 @@ public class KabschSpawner : MonoBehaviour
             r.transform.parent = this.transform;
             n.transform.parent = this.transform;
 
+            if (legPrefab != null)
+            {
+                SpawnLeg(r.transform, n.transform);
+            }
+
+
         }
         if (weedPrefab != null)
             SpawnWeed();
-
     }
 
     void SpawnWeed()
@@ -59,8 +69,25 @@ public class KabschSpawner : MonoBehaviour
         GameObject w = Instantiate(weedPrefab, weedPos, Quaternion.identity);
         w.transform.parent = this.transform;
 
-        Weed3 weed = w.GetComponent<Weed3>();
-        if (weed != null)
-            weed.SetTarget(center);
+        Leg leg = w.GetComponent<Leg>();
+        if (leg != null)
+            leg.SetTarget(center);
+    }
+
+    void SpawnLeg(Transform r, Transform n)
+    {
+        if (center == null)
+        {
+            Debug.LogWarning("Kabsch Center가 설정되지 않아 Weed를 생성할 수 없습니다!");
+            return;
+        }
+        GameObject w = Instantiate(legPrefab, r);
+
+        float randomSize = Random.Range(0.3f, 0.7f);
+        w.transform.localScale = Vector3.one * randomSize;
+
+        CCDIK ccdik = w.GetComponent<CCDIK>();
+        if (ccdik != null) ccdik.SetOrbitTarget(n);
+
     }
 }

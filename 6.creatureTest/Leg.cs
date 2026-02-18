@@ -1,8 +1,7 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-
-public class Weed3 : MonoBehaviour
+public class Leg : MonoBehaviour
 {
     public LayerMask ground;
 
@@ -12,9 +11,7 @@ public class Weed3 : MonoBehaviour
     public Transform[] parts;
     public Transform tipTarget;
     public Transform target;
-
-    //타겟 회전시킬 때 쓰는 거 앞으로 안 쓸 거면 이거 지워 
-    public Orbit orbiter;
+    public LegControl legControl;
 
     [Header("Settings")]
     public float stride = 2f;
@@ -26,6 +23,7 @@ public class Weed3 : MonoBehaviour
     private bool isMoving = false;
     private Vector3 targetPos;
     private float maxBodyLength;
+
 
     [Header("Draw")]
 
@@ -39,6 +37,7 @@ public class Weed3 : MonoBehaviour
         maxBodyLength = stride * 1.1f;
 
         line = GetComponent<LineRender>();
+        legControl = GetComponentInParent<LegControl>();
 
         //초기 위치
         if (tipTarget != null)
@@ -50,8 +49,6 @@ public class Weed3 : MonoBehaviour
             tipTarget.position = targetPos;
 
             if (target != null) top.position = target.position;
-            //타겟 회전시킬 때 쓰는 거 앞으로 안 쓸 거면 이거 지워 
-            if (orbiter != null) orbiter.SetTarget(target);
         }
     }
 
@@ -97,20 +94,16 @@ public class Weed3 : MonoBehaviour
 
     IEnumerator MoveFoot()
     {
-        isMoving = true;
-
         Vector3 dirToTarget = (target.position - foot.position).normalized;
         //목표 지점은 머리 기준이 아닌 발 기준으로 
         Vector3 destPos = foot.position + (dirToTarget * stride);
 
         targetPos = FootUtil.SetTargetNearest(destPos, ground);
 
-        //목표가 현재 위치랑 너무 가까우면 return
-        if (Vector3.Distance(destPos, targetPos) < 0.01f)
-        {
-            isMoving = false;
-            yield break;
-        }
+        if (legControl != null)
+            if (!legControl.CheckValidFootPos(destPos, this)) { yield break; }
+
+        isMoving = true;
 
         Vector3 targetNormal = FootUtil.GetNormal(targetPos, top.position, ground);
 
@@ -125,6 +118,9 @@ public class Weed3 : MonoBehaviour
 
         isMoving = false;
     }
+
+
+
 
     void bodyFABRIK()
     {
@@ -149,11 +145,14 @@ public class Weed3 : MonoBehaviour
             current.LookAt(lower.transform);
         }
     }
+
+
     public void SetTarget(Transform newTarget)
     {
         this.target = newTarget;
         if (target != null) tipTarget.position = target.position;
 
+        //따라닐 오브젝트와 다리 연결하기 위한 코드
         if (drawPoints == null && parts != null && parts.Length > 0)
         {
             drawPoints = new Transform[parts.Length + 1];

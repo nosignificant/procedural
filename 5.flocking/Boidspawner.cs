@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class BoidSpawner : MonoBehaviour
 {
-    public GameObject boidPrefab; // Boid 스크립트가 붙은 프리팹
+    public GameObject boidPrefab;
     public float spawnRadius = 100f;
     public int spawnCount = 100;
 
