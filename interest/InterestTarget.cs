@@ -7,6 +7,9 @@ public sealed class InterestTarget : MonoBehaviour
     [Header("Links")]
     [SerializeField] private Creature creature;
 
+    [Header("Override")]
+    [SerializeField] private bool useManualValues;
+
     [Header("Runtime Tags")]
     public Faction faction;
     public float weight = 10f;
@@ -27,8 +30,22 @@ public sealed class InterestTarget : MonoBehaviour
             creature = GetComponentInParent<Creature>();
         }
 
-        // 필요하면 여기서 creature.Data 기반으로 faction/weight 등을 초기화할 수 있음.
-        // 지금 단계는 “탐지 + 분류 + 로그”가 목적이므로 최소만 유지.
+        if (!useManualValues && creature != null && creature.Data != null)
+        {
+            faction = creature.Data.faction;
+            weight = creature.Data.interestWeight;
+        }
+    }
+
+    private void OnValidate()
+    {
+        if (Application.isPlaying) return;
+
+        if (!useManualValues && creature != null && creature.Data != null)
+        {
+            faction = creature.Data.faction;
+            weight = creature.Data.interestWeight;
+        }
     }
 
     private void OnDrawGizmos()
