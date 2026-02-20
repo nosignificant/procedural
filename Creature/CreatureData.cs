@@ -18,29 +18,50 @@ public class CreatureData : ScriptableObject
     public float speed;
 
     [Header("relationship")]
-    public List<int> foodCreatureIds = new List<int>();
-    public List<int> enemyCreatureIds = new List<int>();
-    public List<int> friendCreatureIds = new List<int>();
+    public List<CreatureData> foodCreatures = new List<CreatureData>();
+    public List<CreatureData> enemyCreatures = new List<CreatureData>();
+    public List<CreatureData> friendCreatures = new List<CreatureData>();
 
-    public RelationType GetRelationTo(int targetCreatureId)
+    //[Header("sprite")]
+    //public Sprite icon;      
+    //public GameObject prefab;  
+
+    public RelationType GetRelationTo(CreatureData target)
     {
-        // 우선순위: Enemy > Food > Friend > Neutral
-        if (targetCreatureId == 0) return RelationType.Neutral;
+        if (target == null) return RelationType.Neutral;
 
-        if (enemyCreatureIds != null && enemyCreatureIds.Contains(targetCreatureId))
+        if (enemyCreatures != null && enemyCreatures.Contains(target))
             return RelationType.Enemy;
 
-        if (foodCreatureIds != null && foodCreatureIds.Contains(targetCreatureId))
+        if (foodCreatures != null && foodCreatures.Contains(target))
             return RelationType.Food;
 
-        if (friendCreatureIds != null && friendCreatureIds.Contains(targetCreatureId))
+        if (friendCreatures != null && friendCreatures.Contains(target))
             return RelationType.Friend;
 
         return RelationType.Neutral;
     }
 
+    public RelationType GetRelationTo(int targetCreatureId)
+    {
+        if (targetCreatureId == 0) return RelationType.Neutral;
 
-    //[Header("sprite")]
-    //public Sprite icon;      
-    //public GameObject prefab;  
+        if (ContainsId(enemyCreatures, targetCreatureId)) return RelationType.Enemy;
+        if (ContainsId(foodCreatures, targetCreatureId)) return RelationType.Food;
+        if (ContainsId(friendCreatures, targetCreatureId)) return RelationType.Friend;
+
+        return RelationType.Neutral;
+    }
+
+    private static bool ContainsId(List<CreatureData> list, int id)
+    {
+        if (list == null) return false;
+        for (int i = 0; i < list.Count; i++)
+        {
+            var d = list[i];
+            if (d != null && d.creatureID == id) return true;
+        }
+        return false;
+    }
+
 }

@@ -4,12 +4,39 @@ using System.Linq;
 public class LegControl : MonoBehaviour
 {
     public Leg[] legs;
+    public Interest interest;
+    public Transform target;
+    Transform lastTarget;
+
 
     void Start()
     {
         if (legs == null || legs.Length == 0)
             legs = GetComponentsInChildren<Leg>();
 
+        interest = GetComponent<Interest>();
+        if (target == null) target = transform;
+        lastTarget = target;
+    }
+
+    private void Update()
+    {
+        if (interest == null) { Debug.Log("interest 설정을 해주세요"); return; }
+
+        target = interest.CurrentTarget;
+
+        if (target == lastTarget) return;
+
+        lastTarget = target;
+        ApplyTargetToLegs(target);
+    }
+
+    private void ApplyTargetToLegs(Transform t)
+    {
+        if (legs == null) return;
+
+        foreach (var leg in legs)
+        { leg.SetTarget(t); }
     }
     public bool CheckValidFootPos(Vector3 destPos, Leg legAdding)
     {

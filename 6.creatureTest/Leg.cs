@@ -28,8 +28,13 @@ public class Leg : MonoBehaviour
     [Header("Draw")]
 
     public LineRender line;
+    public bool drawToTarget;
     private bool isDrawArrayInitialized = false;
     private Transform[] drawPoints;
+
+    [Header("Debug")]
+    public bool drawTipTargetGizmo = true;
+    public bool drawNextStepGizmo = true;
 
 
     void Start()
@@ -54,7 +59,8 @@ public class Leg : MonoBehaviour
 
     void Update()
     {
-
+        if (target == null || foot == null || top == null || tipTarget == null) { Debug.Log("타겟 설정을 하세요"); return; }
+        if (parts == null || parts.Length < 2) { Debug.Log("파츠가 없음"); return; }
         MoveFootandClampedTop();
 
         bodyFABRIK();
@@ -150,10 +156,9 @@ public class Leg : MonoBehaviour
     public void SetTarget(Transform newTarget)
     {
         this.target = newTarget;
-        if (target != null) tipTarget.position = target.position;
 
         //따라닐 오브젝트와 다리 연결하기 위한 코드
-        if (drawPoints == null && parts != null && parts.Length > 0)
+        if (drawToTarget && drawPoints == null && parts != null && parts.Length > 0)
         {
             drawPoints = new Transform[parts.Length + 1];
             //배열 초기화
@@ -169,9 +174,20 @@ public class Leg : MonoBehaviour
         }
     }
 
-    public void SetTipTarget(Transform newTarget)
+    private void OnDrawGizmos()
     {
-        this.tipTarget = newTarget;
+        if (drawTipTargetGizmo && tipTarget != null)
+        {
+            Gizmos.color = isMoving ? Color.yellow : Color.cyan;
+            Gizmos.DrawWireSphere(tipTarget.position, 0.5f);
+        }
+
+        // targetPos는 "다음 디딜 자리"라서, 실제로 MoveFoot() 한 번이라도 돌기 전엔 (0,0,0)일 수 있음
+        if (drawNextStepGizmo && targetPos != Vector3.zero)
+        {
+            Gizmos.color = Color.magenta;
+            Gizmos.DrawWireSphere(targetPos, 0.5f);
+        }
     }
 
 }

@@ -5,7 +5,7 @@ using UnityEngine;
 public class CreatureScanner : MonoBehaviour
 {
     [Header("Settings")]
-    public float scanRadius = 15f;
+    public float scanRadius = 30f;
     public LayerMask targetLayer;
     public float scanInterval = 0.2f;
 
