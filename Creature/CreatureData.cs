@@ -11,7 +11,7 @@ public class CreatureData : ScriptableObject
     public int creatureID;
 
     [Header("identity")]
-    public float interestWeight;
+    public float interestWeight = 1;
 
     [Header("stat")]
     public int maxHP;

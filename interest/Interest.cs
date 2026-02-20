@@ -1,145 +1,286 @@
-// File: creature/Interest.cs
-using System.Collections.Generic;
+// File: Assets/script/interest/Interest.cs
 using UnityEngine;
+using Game.Creatures;
+using System.Collections.Generic;
 
 [DisallowMultipleComponent]
 public sealed class Interest : MonoBehaviour
 {
     [Header("References")]
     public CreatureScanner scanner;
+    public Creature selfCreature;
 
-    [Header("Preferences")]
-    public Faction myFaction;
-    public List<Faction> foodFactions = new List<Faction>();
-    public List<Faction> enemyFactions = new List<Faction>();
+    [Header("Decision Output")]
+    [SerializeField] private CreatureIntent intent = CreatureIntent.Wander;
+    [SerializeField] private Transform currentTarget;
+    public Transform CurrentTarget => currentTarget;
+    public CreatureIntent Intent => intent;
 
-    [Header("Decision Result")]
-    public Transform currentTarget;
-    public bool isFleeing;
+    [Header("EQS (Point Query)")]
+    public bool useEqs = true;
+    public float pointSpacing = 2f;
+    public int maxPoints = 100;
+    public LayerMask groundMask;
+    public float groundRayHeight = 5f;
+    public float groundRayDepth = 20f;
 
-    [Header("Weight Settings")]
-    public float distanceWeight = 10f;
+    public bool isWalkingCreature = false;
+    public bool isFlyingCreature = false;
 
-    // 로그 스팸 방지용 상태
-    private bool hadAny;
-    private int lastFriendCount;
-    private int lastEnemyCount;
-    private int lastFoodCount;
+    [Header("Scoring")]
+    public float foodAttract = 1.0f;
+    public float enemyRepel = 2.0f;
+    public float distanceFalloff = 1.0f;
+
+    [Header("Optional LOS (wall blocking)")]
+    public bool useLineOfSight = false;
+    public LayerMask obstacleMask;
+
+    [Header("Memory (Infinite until arrived)")]
+    [Min(0f)] public float rememberStopDistance = 1.0f;     // 이 거리 안이면 도착
+    [Min(0f)] public float rememberMinScoreToStore = 0.01f; // 이 점수 이상이면 기억 갱신
+
+    [Header("Debug")]
+    public bool drawEqsPoints = true;
+
+    private Transform proxyTarget;
+
+    private readonly List<Vector3> lastPoints = new();
+    private readonly List<float> lastScores = new();
+
+    // ✅ 무한 메모리
+    private bool hasMemory;
+    private Vector3 rememberedPoint;
+    private float rememberedScore;
+
+    private void Awake()
+    {
+        if (scanner == null) scanner = GetComponent<CreatureScanner>();
+        if (selfCreature == null) selfCreature = GetComponent<Creature>();
+
+        EnsureProxyTarget();
+        currentTarget = proxyTarget;
+
+        hasMemory = false;
+        rememberedPoint = transform.position;
+        rememberedScore = 0f;
+    }
+
+    //따라다닐 임시 타겟
+    private void EnsureProxyTarget()
+    {
+        if (proxyTarget != null) return;
+
+        var go = new GameObject($"{name}_EQS_Target");
+        go.transform.SetParent(transform, worldPositionStays: true);
+        go.hideFlags = HideFlags.DontSave;
+
+        proxyTarget = go.transform;
+        proxyTarget.position = transform.position;
+    }
 
     private void Update()
     {
-        if (scanner == null) return;
+        if (scanner == null || selfCreature == null || selfCreature.Data == null || !useEqs)
+        {
+            intent = CreatureIntent.Wander;
+            EnsureProxyTarget();
+            proxyTarget.position = transform.position;
+            currentTarget = proxyTarget;
+            hasMemory = false;
+            return;
+        }
 
-        ThinkAndLog();
-        // TODO: 이동/행동은 여기서 currentTarget 기반으로 처리
+        EnsureProxyTarget();
+
+        if (hasMemory)
+        {   //메모리 있을 때 도착했는지 확인
+            if (ArrivedAtMemory())
+            {
+                hasMemory = false;
+                intent = CreatureIntent.Wander;
+                proxyTarget.position = transform.position;
+                currentTarget = proxyTarget;
+                return;
+            }
+
+            // 메모리가 있으면 기본 타겟은 메모리
+            proxyTarget.position = rememberedPoint;
+            currentTarget = proxyTarget;
+            intent = CreatureIntent.Chase;
+        }
+
+        // ✅ 그리고 “감지된 게 있으면” 메모리를 갱신(더 좋은 곳으로 업데이트)
+        RunEqsAndMaybeUpdateMemory();
     }
 
-    private void ThinkAndLog()
+    private bool ArrivedAtMemory()
     {
-        IReadOnlyList<InterestTarget> detected = scanner.Results;
+        return Vector3.Distance(transform.position, rememberedPoint) <= rememberStopDistance;
+    }
 
-        int friendCount = 0;
-        int enemyCount = 0;
-        int foodCount = 0;
+    private void StoreMemory(Vector3 point, float score)
+    {
+        if (score < rememberMinScoreToStore) return;
 
+        rememberedPoint = point;
+        rememberedScore = score;
+        hasMemory = true;
+    }
+
+    private void RunEqsAndMaybeUpdateMemory()
+    {
+        var detected = scanner.Results;
+
+        // 감지된 게 없으면: 메모리가 있으면 유지(이미 Update에서 유지함), 없으면 Wander
         if (detected == null || detected.Count == 0)
         {
-            currentTarget = null;
-            isFleeing = false;
-
-            // 변화가 있을 때만 로그
-            if (hadAny)
+            if (!hasMemory)
             {
-                Debug.Log($"[{name}] 주변에 더 이상 대상이 없습니다.");
-                hadAny = false;
-                lastFriendCount = lastEnemyCount = lastFoodCount = 0;
+                intent = CreatureIntent.Wander;
+                proxyTarget.position = transform.position;
+                currentTarget = proxyTarget;
             }
             return;
         }
 
-        hadAny = true;
+        BuildQueryPoints();
 
-        InterestTarget best = null;
-        float highestScore = float.MinValue;
-        bool shouldFlee = false;
+        Vector3 bestPoint = transform.position;
+        float bestScore = float.NegativeInfinity;
+
+        for (int i = 0; i < lastPoints.Count; i++)
+        {
+            Vector3 p = lastPoints[i];
+            float score = ScorePoint(p, detected);
+            if (i < lastScores.Count) lastScores[i] = score;
+
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestPoint = p;
+            }
+        }
+
+        // “좋은 점수”면 메모리 갱신
+        if (bestScore > rememberMinScoreToStore)
+            StoreMemory(bestPoint, bestScore);
+
+        // 메모리가 없었고 이번에 처음 생겼으면 즉시 타겟으로 반영
+        if (hasMemory)
+        {
+            proxyTarget.position = rememberedPoint;
+            currentTarget = proxyTarget;
+            intent = CreatureIntent.Chase;
+        }
+        else
+        {
+            // 점수가 별로면 배회 유지
+            intent = CreatureIntent.Wander;
+            proxyTarget.position = transform.position;
+            currentTarget = proxyTarget;
+        }
+    }
+
+    private void BuildQueryPoints()
+    {
+        lastPoints.Clear();
+        lastScores.Clear();
+
+        float r = Mathf.Max(0.1f, scanner.scanRadius * 2);
+        float s = Mathf.Max(0.25f, pointSpacing);
+        Vector3 center = transform.position;
+
+        if (isFlyingCreature)
+        {
+            for (int i = 0; i < maxPoints; i++)
+            {
+                Vector3 p = center + Random.insideUnitSphere * r;
+                lastPoints.Add(p);
+                lastScores.Add(0f);
+            }
+            return;
+        }
+
+        int steps = Mathf.CeilToInt((r * 2f) / s);
+        for (int x = -steps; x <= steps; x++)
+        {
+            for (int z = -steps; z <= steps; z++)
+            {
+                if (lastPoints.Count >= maxPoints) return;
+
+                Vector3 p = center + new Vector3(x * s, 0f, z * s);
+                if ((p - center).sqrMagnitude > r * r) continue;
+
+                p.y = center.y;
+                if (!SnapToGround(ref p)) continue;
+
+                lastPoints.Add(p);
+                lastScores.Add(0f);
+            }
+        }
+    }
+
+    private bool SnapToGround(ref Vector3 p)
+    {
+        Vector3 origin = p + Vector3.up * groundRayHeight;
+        if (Physics.Raycast(origin, Vector3.down, out var hit, groundRayDepth, groundMask))
+        {
+            p = hit.point;
+            return true;
+        }
+        return false;
+    }
+
+    private float ScorePoint(Vector3 point, IReadOnlyList<InterestTarget> detected)
+    {
+        float total = 0f;
 
         for (int i = 0; i < detected.Count; i++)
         {
             var t = detected[i];
-            if (t == null) continue;
-            if (t.rootTransform == null) continue;
+            if (t == null || t.rootTransform == null) continue;
+            if (t.SpeciesId == 0) continue;
 
-            // 분류 카운트
-            bool isFood = foodFactions.Contains(t.faction);
-            bool isEnemy = enemyFactions.Contains(t.faction);
-            bool isFriend = (!isFood && !isEnemy && t.faction == myFaction);
+            RelationType rel = selfCreature.Data.GetRelationTo(t.SpeciesId);
 
-            if (isFood) foodCount++;
-            if (isEnemy) enemyCount++;
-            if (isFriend) friendCount++;
+            if (useLineOfSight && IsBlocked(point, t.rootTransform.position))
+                continue;
 
-            float score = CalculateScore(t, out bool isDanger);
-            if (score > highestScore)
-            {
-                highestScore = score;
-                best = t;
-                shouldFlee = isDanger;
-            }
+            float d = Vector3.Distance(point, t.rootTransform.position);
+            float w = Mathf.Max(0f, t.Weight);
+            float distTerm = 1f / Mathf.Pow(d + 1f, distanceFalloff);
+
+            if (rel == RelationType.Food) total += (foodAttract * w) * distTerm;
+            else if (rel == RelationType.Enemy) total -= (enemyRepel * w) * distTerm;
         }
 
-        // 상태 변화가 있을 때만 로그(원하는 문구)
-        if (friendCount != lastFriendCount || enemyCount != lastEnemyCount || foodCount != lastFoodCount)
-        {
-            if (friendCount > 0) Debug.Log($"[{name}] 주변에 친구를 찾았습니다! (친구 {friendCount})");
-            if (enemyCount > 0) Debug.Log($"[{name}] 주변에 적을 찾았습니다! (적 {enemyCount})");
-            if (foodCount > 0) Debug.Log($"[{name}] 주변에 먹이를 찾았습니다! (먹이 {foodCount})");
-
-            lastFriendCount = friendCount;
-            lastEnemyCount = enemyCount;
-            lastFoodCount = foodCount;
-        }
-
-        if (best != null)
-        {
-            currentTarget = best.rootTransform;
-            isFleeing = shouldFlee;
-        }
-        else
-        {
-            currentTarget = null;
-            isFleeing = false;
-        }
+        return total;
     }
 
-    private float CalculateScore(InterestTarget target, out bool isDanger)
+    private bool IsBlocked(Vector3 from, Vector3 to)
     {
-        float distance = Vector3.Distance(transform.position, target.transform.position);
-        float distScore = (distanceWeight / (distance + 0.1f));
-
-        isDanger = false;
-
-        if (foodFactions.Contains(target.faction))
-        {
-            return target.weight + distScore;
-        }
-
-        if (enemyFactions.Contains(target.faction))
-        {
-            isDanger = true;
-            return (target.weight + distScore) * 2.0f;
-        }
-
-        // 친구/중립은 약하게
-        bool isFriend = (target.faction == myFaction);
-        return distScore * (isFriend ? 0.2f : 0.1f);
+        Vector3 a = from + Vector3.up * 1.0f;
+        Vector3 b = to + Vector3.up * 1.0f;
+        Vector3 dir = b - a;
+        float dist = dir.magnitude;
+        if (dist <= 0.001f) return false;
+        dir /= dist;
+        return Physics.Raycast(a, dir, dist, obstacleMask);
     }
 
     private void OnDrawGizmos()
     {
-        if (currentTarget == null) return;
+        if (proxyTarget == null) return;
 
-        Gizmos.color = isFleeing ? Color.red : Color.green;
-        Gizmos.DrawLine(transform.position, currentTarget.position);
-        Gizmos.DrawSphere(currentTarget.position + Vector3.up * 2, 0.5f);
+        Gizmos.color = (intent == CreatureIntent.Flee) ? Color.red : Color.green;
+        Gizmos.DrawLine(transform.position, proxyTarget.position);
+        Gizmos.DrawSphere(proxyTarget.position + Vector3.up * 2, 0.5f);
+
+        if (hasMemory)
+        {
+            Gizmos.color = Color.yellow;
+            Gizmos.DrawWireSphere(rememberedPoint + Vector3.up * 1.0f, 0.4f);
+        }
     }
 }
