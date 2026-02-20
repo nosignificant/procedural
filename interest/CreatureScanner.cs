@@ -1,9 +1,8 @@
-// File: creature/CreatureScanner.cs
 using System.Collections.Generic;
 using UnityEngine;
 
 [DisallowMultipleComponent]
-public sealed class CreatureScanner : MonoBehaviour
+public class CreatureScanner : MonoBehaviour
 {
     [Header("Settings")]
     public float scanRadius = 15f;
@@ -13,9 +12,11 @@ public sealed class CreatureScanner : MonoBehaviour
     [Header("Performance")]
     [Min(8)] public int maxHits = 64;
 
+    //readonly: 한번 정해진 참조를 바꿀 수 없음 
     private readonly List<InterestTarget> nearby = new List<InterestTarget>(64);
     private Collider[] hitBuffer;
 
+    //읽기 전용
     public IReadOnlyList<InterestTarget> Results => nearby;
 
     private void Awake()
@@ -42,6 +43,7 @@ public sealed class CreatureScanner : MonoBehaviour
     {
         nearby.Clear();
 
+        //반경에 들어온 개체 hitBuffer 리스트에 담음 
         int hitCount = Physics.OverlapSphereNonAlloc(
             transform.position,
             scanRadius,
@@ -55,9 +57,9 @@ public sealed class CreatureScanner : MonoBehaviour
             if (col == null) continue;
 
             // "나는 제외"
-            if (col.transform == transform) continue;
+            if (col.transform.root == transform.root) continue;
 
-            // 콜라이더가 자식에 붙어있을 수 있으니 InParent 권장
+            // 콜라이더가 자식에 붙어있을 수 있으니 InParent
             var target = col.GetComponentInParent<InterestTarget>();
             if (target == null) continue;
 

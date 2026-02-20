@@ -4,12 +4,14 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class Creature : MonoBehaviour
 {
-    [Header("Data (Species Shared)")]
+    //종족 공유 데이터 받아옴 
+    [Header("Species Shared")]
     [SerializeField] private CreatureData creatureData;
 
-    [Header("Runtime (Per-Instance)")]
+    [Header("instance")]
     [SerializeField] private int currentHP;
 
+    //getter 함수 c# 버전
     public CreatureData Data => creatureData;
     public int CreatureId => creatureData != null ? creatureData.creatureID : 0;
     public int MaxHP => creatureData != null ? creatureData.maxHP : 0;
@@ -25,13 +27,7 @@ public class Creature : MonoBehaviour
             throw new InvalidOperationException($"{name}: CreatureData is not assigned.");
 
         ApplyIdentity();
-        Respawn(fullHeal: true);
-    }
-
-    private void OnValidate()
-    {
-        if (!Application.isPlaying && creatureData != null)
-            ApplyIdentity();
+        currentHP = MaxHP;
     }
 
     private void ApplyIdentity()
@@ -56,26 +52,12 @@ public class Creature : MonoBehaviour
         SetHP(currentHP + amount);
     }
 
-    public void Respawn(bool fullHeal)
-    {
-        gameObject.SetActive(true);
-
-        if (fullHeal) SetHP(MaxHP);
-        else SetHP(Mathf.Clamp(currentHP, 1, MaxHP));
-    }
-
-    public void Revive(int hp)
-    {
-        gameObject.SetActive(true);
-        SetHP(Mathf.Clamp(hp, 1, MaxHP));
-    }
-
     private void SetHP(int newHp)
     {
         int old = currentHP;
         currentHP = Mathf.Clamp(newHp, 0, MaxHP);
-        if (old != currentHP)
-            HpChanged?.Invoke(this, old, currentHP);
+        if (old != currentHP) // HpChange 구독한 함수에게 알림 나중에 UI만들때 참고
+        { HpChanged?.Invoke(this, old, currentHP); }
     }
 
     private void Die()
