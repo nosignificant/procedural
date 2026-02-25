@@ -56,7 +56,7 @@ public class CreatureScanner : MonoBehaviour
             var col = hitBuffer[i];
             if (col == null) continue;
 
-            // "나는 제외"
+            // 나는 제외
             if (col.transform.root == transform.root) continue;
 
             // 콜라이더가 자식에 붙어있을 수 있으니 InParent

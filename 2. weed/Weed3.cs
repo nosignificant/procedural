@@ -13,8 +13,6 @@ public class Weed3 : MonoBehaviour
     public Transform tipTarget;
     public Transform target;
 
-    //타겟 회전시킬 때 쓰는 거 앞으로 안 쓸 거면 이거 지워 
-    public Orbit orbiter;
 
     [Header("Settings")]
     public float stride = 2f;
@@ -50,8 +48,6 @@ public class Weed3 : MonoBehaviour
             tipTarget.position = targetPos;
 
             if (target != null) top.position = target.position;
-            //타겟 회전시킬 때 쓰는 거 앞으로 안 쓸 거면 이거 지워 
-            if (orbiter != null) orbiter.SetTarget(target);
         }
     }
 

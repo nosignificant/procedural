@@ -19,8 +19,8 @@ public class Kabsch2 : MonoBehaviour
     public Transform parent;
 
     public LineRender line;
-    private GameObject centerInstance;
-    private KabschSpawner kabschSpawner;
+    public GameObject centerInstance;
+    public KabschSpawner kabschSpawner;
 
     // 내부 변수들
     private Vector3[] originalInLocalPos;
@@ -29,25 +29,35 @@ public class Kabsch2 : MonoBehaviour
     private Vector3[] currentRefPoints;
     private Quaternion currentSmoothedRot = Quaternion.identity;
 
-    void Start()
+    private void Awake()
     {
         kabschSpawner = GetComponent<KabschSpawner>();
         line = GetComponent<LineRender>();
-
         if (centerPrefab != null)
             centerInstance = Instantiate(centerPrefab, parent != null ? parent : transform);
+    }
 
-        if (kabschSpawner != null && centerInstance != null) kabschSpawner.getKabschCenter(centerInstance.transform);
-
+    private void OnEnable()
+    {
         if (kabschSpawner != null)
-            kabschSpawner.Spawn(out refChild, out inChild);
+            kabschSpawner.Spawned += OnSpawned;
+    }
+
+    private void OnDisable()
+    {
+        if (kabschSpawner != null)
+            kabschSpawner.Spawned -= OnSpawned;
+    }
+
+    private void OnSpawned(Transform[] refs, Transform[] ins)
+    {
+        refChild = refs;
+        inChild = ins;
 
         originalInLocalPos = new Vector3[inChild.Length];
         currentRefPoints = new Vector3[refChild.Length];
 
-        //기본 모양 저장 
         InitOriginalShape();
-
     }
 
     void InitOriginalShape()
@@ -139,5 +149,10 @@ public class Kabsch2 : MonoBehaviour
             q = Quaternion.AngleAxis(w * Mathf.Rad2Deg, omega.normalized) * q;
             q = q.normalized;
         }
+    }
+
+    public void SetTarget(Transform t)
+    {
+        target = t;
     }
 }

@@ -2,7 +2,7 @@ using UnityEngine;
 
 [RequireComponent(typeof(CharacterController))]
 
-public class TargetControl : MonoBehaviour
+public class OldTargetControl : MonoBehaviour
 {
     public float speed = 7.5f;
     public float jumpSpeed = 8.0f;

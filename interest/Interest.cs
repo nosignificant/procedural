@@ -9,6 +9,7 @@ public sealed class Interest : MonoBehaviour
     [Header("References")]
     public CreatureScanner scanner;
     public Creature selfCreature;
+    public TargetControl targetControl;
 
     [Header("Decision Output")]
     [SerializeField] private CreatureIntent intent = CreatureIntent.Wander;
@@ -23,14 +24,11 @@ public sealed class Interest : MonoBehaviour
     public LayerMask groundMask;
     public float groundRayHeight = 5f;
     public float groundRayDepth = 20f;
-
-    public bool isWalkingCreature = false;
     public bool isFlyingCreature = false;
 
     [Header("Scoring")]
     public float foodAttract = 1.0f;
     public float enemyRepel = 2.0f;
-    public float distanceFalloff = 1.0f;
 
     [Header("Optional LOS (wall blocking)")]
     public bool useLineOfSight = false;
@@ -57,6 +55,7 @@ public sealed class Interest : MonoBehaviour
     {
         if (scanner == null) scanner = GetComponent<CreatureScanner>();
         if (selfCreature == null) selfCreature = GetComponent<Creature>();
+        if (targetControl == null) targetControl = GetComponent<TargetControl>();
 
         EnsureProxyTarget();
         currentTarget = proxyTarget;
@@ -94,7 +93,7 @@ public sealed class Interest : MonoBehaviour
         EnsureProxyTarget();
 
         if (hasMemory)
-        {   //메모리 있을 때 도착했는지 확인
+        {   //메모리 있을 때 도착했으면 메모리 지움
             if (ArrivedAtMemory())
             {
                 hasMemory = false;
@@ -112,6 +111,8 @@ public sealed class Interest : MonoBehaviour
 
         // ✅ 그리고 “감지된 게 있으면” 메모리를 갱신(더 좋은 곳으로 업데이트)
         RunEqsAndMaybeUpdateMemory();
+
+        if (targetControl != null) targetControl.SetMovementTarget(CurrentTarget);
     }
 
     private bool ArrivedAtMemory()
@@ -236,12 +237,14 @@ public sealed class Interest : MonoBehaviour
     {
         float total = 0f;
 
+        //creature target에서 가져온 배열 
         for (int i = 0; i < detected.Count; i++)
         {
             var t = detected[i];
             if (t == null || t.rootTransform == null) continue;
             if (t.SpeciesId == 0) continue;
 
+            //각 데이터에 설정된 관계에 따라 enum 반환
             RelationType rel = selfCreature.Data.GetRelationTo(t.SpeciesId);
 
             if (useLineOfSight && IsBlocked(point, t.rootTransform.position))
@@ -249,7 +252,7 @@ public sealed class Interest : MonoBehaviour
 
             float d = Vector3.Distance(point, t.rootTransform.position);
             float w = Mathf.Max(0f, t.Weight);
-            float distTerm = 1f / Mathf.Pow(d + 1f, distanceFalloff);
+            float distTerm = 1f / Mathf.Pow(d + 1f, 1.0f);
 
             if (rel == RelationType.Food) total += (foodAttract * w) * distTerm;
             else if (rel == RelationType.Enemy) total -= (enemyRepel * w) * distTerm;
@@ -258,6 +261,7 @@ public sealed class Interest : MonoBehaviour
         return total;
     }
 
+    //레이캐스트해서 막혔을때
     private bool IsBlocked(Vector3 from, Vector3 to)
     {
         Vector3 a = from + Vector3.up * 1.0f;
